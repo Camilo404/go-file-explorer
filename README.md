@@ -130,6 +130,7 @@ curl -s "http://localhost:8080/api/v1/search?q=report&path=/documents&type=file&
   - `POST /api/v1/files/copy`
   - `DELETE /api/v1/files` (soft delete to trash)
   - `POST /api/v1/files/restore`
+  - `GET /api/v1/trash` (list trash records, query `include_restored=true` optional)
 
 - Jobs (async)
   - `POST /api/v1/jobs/operations`

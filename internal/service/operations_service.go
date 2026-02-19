@@ -276,6 +276,10 @@ func (s *OperationsService) Restore(_ context.Context, paths []string, actor mod
 	return result, nil
 }
 
+func (s *OperationsService) ListTrash(_ context.Context, includeRestored bool) ([]TrashRecord, error) {
+	return s.trash.List(includeRestored)
+}
+
 func copyRecursive(source string, target string) error {
 	info, err := os.Stat(source)
 	if err != nil {

@@ -149,6 +149,27 @@ func (s *TrashService) RestoreLatest(apiPath string, actor model.AuditActor) (Tr
 	return record, nil
 }
 
+func (s *TrashService) List(includeRestored bool) ([]TrashRecord, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	index, err := s.loadIndex()
+	if err != nil {
+		return nil, err
+	}
+
+	records := make([]TrashRecord, 0, len(index.Records))
+	for idx := len(index.Records) - 1; idx >= 0; idx-- {
+		record := index.Records[idx]
+		if !includeRestored && record.RestoredAt != "" {
+			continue
+		}
+		records = append(records, record)
+	}
+
+	return records, nil
+}
+
 func (s *TrashService) loadIndex() (trashIndex, error) {
 	data, err := os.ReadFile(s.indexFile)
 	if err != nil {

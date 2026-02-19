@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"go-file-explorer/internal/model"
@@ -111,4 +112,25 @@ func (h *OperationsHandler) Restore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeSuccess(w, http.StatusOK, result, nil)
+}
+
+func (h *OperationsHandler) ListTrash(w http.ResponseWriter, r *http.Request) {
+	includeRestored := false
+	rawIncludeRestored := strings.TrimSpace(r.URL.Query().Get("include_restored"))
+	if rawIncludeRestored != "" {
+		parsedValue, err := strconv.ParseBool(rawIncludeRestored)
+		if err != nil {
+			writeError(w, apierror.New("BAD_REQUEST", "include_restored must be true or false", "include_restored", http.StatusBadRequest))
+			return
+		}
+		includeRestored = parsedValue
+	}
+
+	records, err := h.service.ListTrash(r.Context(), includeRestored)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	writeSuccess(w, http.StatusOK, map[string]any{"items": records}, nil)
 }
