@@ -1,0 +1,13 @@
+.env
+bin/
+dist/
+node_modules/
+coverage.out
+*.log
+
+data/
+state/
+plans/
+
+.DS_Store
+Thumbs.db
