@@ -18,6 +18,9 @@ func New(
 	fileHandler *handler.FileHandler,
 	operationsHandler *handler.OperationsHandler,
 	searchHandler *handler.SearchHandler,
+	auditHandler *handler.AuditHandler,
+	jobsHandler *handler.JobsHandler,
+	docsHandler *handler.DocsHandler,
 ) http.Handler {
 	r := chi.NewRouter()
 	rateLimitMiddleware := middleware.NewRateLimitMiddleware(cfg.RateLimitRPM, cfg.AuthRateLimitRPM)
@@ -32,6 +35,8 @@ func New(
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+	r.Get("/openapi.yaml", docsHandler.OpenAPI)
+	r.Get("/swagger", docsHandler.SwaggerUI)
 
 	r.Route("/api/v1", func(api chi.Router) {
 		api.Use(middleware.Timeout(cfg.RequestTimeout))
@@ -45,6 +50,7 @@ func New(
 		})
 
 		api.With(authMiddleware.RequireAuth).Get("/files", directoryHandler.List)
+		api.With(authMiddleware.RequireAuth).Get("/tree", directoryHandler.Tree)
 		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/files/upload", fileHandler.Upload)
 		api.With(authMiddleware.RequireAuth).Get("/files/download", fileHandler.Download)
 		api.With(authMiddleware.RequireAuth).Get("/files/preview", fileHandler.Preview)
@@ -56,6 +62,10 @@ func New(
 		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Delete("/files", operationsHandler.Delete)
 		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/files/restore", operationsHandler.Restore)
 		api.With(authMiddleware.RequireAuth).Get("/search", searchHandler.Search)
+		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("admin")).Get("/audit", auditHandler.List)
+		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/jobs/operations", jobsHandler.CreateOperationJob)
+		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Get("/jobs/{job_id}", jobsHandler.GetJob)
+		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Get("/jobs/{job_id}/items", jobsHandler.GetJobItems)
 		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/directories", directoryHandler.Create)
 	})
 

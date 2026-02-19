@@ -116,6 +116,7 @@ curl -s "http://localhost:8080/api/v1/search?q=report&path=/documents&type=file&
 
 - Directory + Files
   - `GET /api/v1/files`
+  - `GET /api/v1/tree`
   - `POST /api/v1/directories`
   - `POST /api/v1/files/upload`
   - `GET /api/v1/files/download`
@@ -130,8 +131,20 @@ curl -s "http://localhost:8080/api/v1/search?q=report&path=/documents&type=file&
   - `DELETE /api/v1/files` (soft delete to trash)
   - `POST /api/v1/files/restore`
 
+- Jobs (async)
+  - `POST /api/v1/jobs/operations`
+  - `GET /api/v1/jobs/{job_id}`
+  - `GET /api/v1/jobs/{job_id}/items`
+
 - Search
   - `GET /api/v1/search?q=...&path=...&type=file|dir&ext=.pdf&page=1&limit=20`
+
+- Audit
+  - `GET /api/v1/audit` (admin)
+
+- API Docs
+  - `GET /openapi.yaml`
+  - `GET /swagger`
 
 ## Thumbnails
 

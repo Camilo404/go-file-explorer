@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"unicode"
 
@@ -77,10 +78,18 @@ func hasControlCharacters(value string) bool {
 }
 
 func isWithinRoot(rootAbs string, candidateAbs string) bool {
-	if candidateAbs == rootAbs {
+	root := filepath.Clean(rootAbs)
+	candidate := filepath.Clean(candidateAbs)
+
+	if runtime.GOOS == "windows" {
+		root = strings.ToLower(root)
+		candidate = strings.ToLower(candidate)
+	}
+
+	if candidate == root {
 		return true
 	}
 
-	rootWithSeparator := rootAbs + string(filepath.Separator)
-	return strings.HasPrefix(candidateAbs, rootWithSeparator)
+	rootWithSeparator := root + string(filepath.Separator)
+	return strings.HasPrefix(candidate, rootWithSeparator)
 }

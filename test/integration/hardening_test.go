@@ -66,8 +66,12 @@ func TestAuthRateLimitReturns429(t *testing.T) {
 	require.NoError(t, err)
 	auditService, err := service.NewAuditService(auditLogFile)
 	require.NoError(t, err)
+	auditHandler := handler.NewAuditHandler(auditService)
+	docsHandler := handler.NewDocsHandler(filepath.Join("..", "..", "docs", "openapi.yaml"))
 	operationsService := service.NewOperationsService(store, trashService, auditService)
 	operationsHandler := handler.NewOperationsHandler(operationsService)
+	jobService := service.NewJobService(operationsService)
+	jobsHandler := handler.NewJobsHandler(jobService)
 	searchService := service.NewSearchService(store, 10, 30*time.Second)
 	searchHandler := handler.NewSearchHandler(searchService)
 
@@ -92,7 +96,7 @@ func TestAuthRateLimitReturns429(t *testing.T) {
 		AuditLogFile:       auditLogFile,
 	}
 
-	server := httptest.NewServer(router.New(cfg, authMiddleware, authHandler, directoryHandler, fileHandler, operationsHandler, searchHandler))
+	server := httptest.NewServer(router.New(cfg, authMiddleware, authHandler, directoryHandler, fileHandler, operationsHandler, searchHandler, auditHandler, jobsHandler, docsHandler))
 	t.Cleanup(server.Close)
 
 	loginPayload, err := json.Marshal(map[string]string{"username": "admin", "password": "admin123"})

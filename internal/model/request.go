@@ -34,8 +34,9 @@ type RenameResponse struct {
 }
 
 type MoveRequest struct {
-	Sources     []string `json:"sources"`
-	Destination string   `json:"destination"`
+	Sources        []string `json:"sources"`
+	Destination    string   `json:"destination"`
+	ConflictPolicy string   `json:"conflict_policy,omitempty"`
 }
 
 type MoveCopyResult struct {
@@ -94,14 +95,14 @@ type AuditActor struct {
 }
 
 type AuditEntry struct {
-	Action    string     `json:"action"`
-	OccurredAt string    `json:"occurred_at"`
-	Actor     AuditActor `json:"actor"`
-	Status    string     `json:"status"`
-	Resource  string     `json:"resource,omitempty"`
-	Before    any        `json:"before,omitempty"`
-	After     any        `json:"after,omitempty"`
-	Error     string     `json:"error,omitempty"`
+	Action     string     `json:"action"`
+	OccurredAt string     `json:"occurred_at"`
+	Actor      AuditActor `json:"actor"`
+	Status     string     `json:"status"`
+	Resource   string     `json:"resource,omitempty"`
+	Before     any        `json:"before,omitempty"`
+	After      any        `json:"after,omitempty"`
+	Error      string     `json:"error,omitempty"`
 }
 
 type LoginRequest struct {
@@ -117,4 +118,41 @@ type RegisterRequest struct {
 
 type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token"`
+}
+
+type JobOperationRequest struct {
+	Operation      string   `json:"operation"`
+	Sources        []string `json:"sources,omitempty"`
+	Destination    string   `json:"destination,omitempty"`
+	Paths          []string `json:"paths,omitempty"`
+	ConflictPolicy string   `json:"conflict_policy,omitempty"`
+}
+
+type JobItemResult struct {
+	From   string `json:"from,omitempty"`
+	To     string `json:"to,omitempty"`
+	Path   string `json:"path,omitempty"`
+	Status string `json:"status"`
+	Reason string `json:"reason,omitempty"`
+}
+
+type JobData struct {
+	JobID          string          `json:"job_id"`
+	Operation      string          `json:"operation"`
+	Status         string          `json:"status"`
+	ConflictPolicy string          `json:"conflict_policy,omitempty"`
+	TotalItems     int             `json:"total_items"`
+	ProcessedItems int             `json:"processed_items"`
+	SuccessItems   int             `json:"success_items"`
+	FailedItems    int             `json:"failed_items"`
+	Progress       int             `json:"progress"`
+	CreatedAt      string          `json:"created_at"`
+	StartedAt      string          `json:"started_at,omitempty"`
+	FinishedAt     string          `json:"finished_at,omitempty"`
+	Items          []JobItemResult `json:"items,omitempty"`
+}
+
+type JobItemsData struct {
+	JobID string          `json:"job_id"`
+	Items []JobItemResult `json:"items"`
 }

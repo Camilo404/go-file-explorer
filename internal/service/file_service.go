@@ -54,7 +54,7 @@ func NewFileService(store *storage.Storage, allowedMIMETypes []string, thumbnail
 	return &FileService{store: store, allowedMIMETypes: allowed, thumbnailRoot: thumbnailRoot}
 }
 
-func (s *FileService) Upload(_ context.Context, destination string, filename string, reader io.Reader) (model.UploadItem, error) {
+func (s *FileService) Upload(_ context.Context, destination string, filename string, conflictPolicy string, reader io.Reader) (model.UploadItem, error) {
 	safeName, err := util.SanitizeFilename(filename, false)
 	if err != nil {
 		return model.UploadItem{}, err
@@ -70,6 +70,13 @@ func (s *FileService) Upload(_ context.Context, destination string, filename str
 	}
 
 	targetPath := normalizeAPIPath(filepath.Join(destinationPath, safeName))
+	targetPath, skipped, err := resolveConflictTarget(s.store, targetPath, conflictPolicy)
+	if err != nil {
+		return model.UploadItem{}, err
+	}
+	if skipped {
+		return model.UploadItem{}, apierror.New("CONFLICT", "target already exists and conflict_policy=skip", safeName, http.StatusConflict)
+	}
 
 	sniffBuffer := make([]byte, 512)
 	n, readErr := io.ReadFull(reader, sniffBuffer)

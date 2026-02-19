@@ -60,12 +60,43 @@ func (h *DirectoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	writeSuccess(w, http.StatusCreated, data, nil)
 }
 
+func (h *DirectoryHandler) Tree(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	requestedPath := strings.TrimSpace(query.Get("path"))
+	depth := parseIntOrDefault(query.Get("depth"), 1)
+	includeFiles := parseBoolOrDefault(query.Get("include_files"), false)
+	page := parseIntOrDefault(query.Get("page"), 1)
+	limit := parseIntOrDefault(query.Get("limit"), 200)
+
+	data, meta, err := h.service.Tree(r.Context(), requestedPath, depth, includeFiles, page, limit)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	writeSuccess(w, http.StatusOK, data, &meta)
+}
+
 func parseIntOrDefault(raw string, fallback int) int {
 	if strings.TrimSpace(raw) == "" {
 		return fallback
 	}
 
 	v, err := strconv.Atoi(raw)
+	if err != nil {
+		return fallback
+	}
+
+	return v
+}
+
+func parseBoolOrDefault(raw string, fallback bool) bool {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return fallback
+	}
+
+	v, err := strconv.ParseBool(trimmed)
 	if err != nil {
 		return fallback
 	}

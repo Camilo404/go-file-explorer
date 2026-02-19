@@ -52,11 +52,15 @@ func main() {
 		slog.Error("failed to initialize audit service", "error", err)
 		os.Exit(1)
 	}
+	auditHandler := handler.NewAuditHandler(auditService)
+	docsHandler := handler.NewDocsHandler("./docs/openapi.yaml")
 	operationsService := service.NewOperationsService(store, trashService, auditService)
 	operationsHandler := handler.NewOperationsHandler(operationsService)
+	jobService := service.NewJobService(operationsService)
+	jobsHandler := handler.NewJobsHandler(jobService)
 	searchService := service.NewSearchService(store, cfg.SearchMaxDepth, cfg.SearchTimeout)
 	searchHandler := handler.NewSearchHandler(searchService)
-	appRouter := router.New(cfg, authMiddleware, authHandler, directoryHandler, fileHandler, operationsHandler, searchHandler)
+	appRouter := router.New(cfg, authMiddleware, authHandler, directoryHandler, fileHandler, operationsHandler, searchHandler, auditHandler, jobsHandler, docsHandler)
 
 	server := &http.Server{
 		Addr:         ":" + cfg.ServerPort,

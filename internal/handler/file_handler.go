@@ -33,6 +33,7 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	destination := "/"
+	conflictPolicy := strings.TrimSpace(r.URL.Query().Get("conflict_policy"))
 	result := model.UploadResponse{Uploaded: []model.UploadItem{}, Failed: []model.UploadFailure{}}
 
 	for {
@@ -55,12 +56,22 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		if part.FormName() == "conflict_policy" {
+			policyBytes, _ := io.ReadAll(part)
+			policyValue := strings.TrimSpace(string(policyBytes))
+			if policyValue != "" {
+				conflictPolicy = policyValue
+			}
+			_ = part.Close()
+			continue
+		}
+
 		if part.FormName() != "files" || strings.TrimSpace(part.FileName()) == "" {
 			_ = part.Close()
 			continue
 		}
 
-		uploaded, uploadErr := h.service.Upload(r.Context(), destination, part.FileName(), part)
+		uploaded, uploadErr := h.service.Upload(r.Context(), destination, part.FileName(), conflictPolicy, part)
 		if uploadErr != nil {
 			result.Failed = append(result.Failed, model.UploadFailure{Name: part.FileName(), Reason: uploadErr.Error()})
 			_ = part.Close()

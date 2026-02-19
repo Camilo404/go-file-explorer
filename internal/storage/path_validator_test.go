@@ -2,6 +2,7 @@ package storage
 
 import (
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -45,5 +46,14 @@ func TestPathValidatorResolvePath(t *testing.T) {
 	t.Run("null bytes are rejected", func(t *testing.T) {
 		_, resolveErr := validator.ResolvePath("documents\x00/report.txt")
 		require.Error(t, resolveErr)
+	})
+
+	t.Run("within root check is platform-aware", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			require.True(t, isWithinRoot(`C:\Storage\Root`, `c:\storage\root\folder\file.txt`))
+			return
+		}
+
+		require.False(t, isWithinRoot(`/tmp/Root`, `/tmp/root/folder/file.txt`))
 	})
 }

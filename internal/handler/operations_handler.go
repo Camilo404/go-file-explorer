@@ -50,7 +50,7 @@ func (h *OperationsHandler) Move(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.service.Move(r.Context(), payload.Sources, payload.Destination, actorFromRequest(r))
+	result, err := h.service.Move(r.Context(), payload.Sources, payload.Destination, payload.ConflictPolicy, actorFromRequest(r))
 	if err != nil {
 		writeError(w, err)
 		return
@@ -68,7 +68,7 @@ func (h *OperationsHandler) Copy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.service.Copy(r.Context(), payload.Sources, payload.Destination, actorFromRequest(r))
+	result, err := h.service.Copy(r.Context(), payload.Sources, payload.Destination, payload.ConflictPolicy, actorFromRequest(r))
 	if err != nil {
 		writeError(w, err)
 		return

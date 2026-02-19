@@ -73,10 +73,16 @@ func (s *OperationsService) Rename(_ context.Context, oldPath string, newName st
 	return result, nil
 }
 
-func (s *OperationsService) Move(_ context.Context, sources []string, destination string, actor model.AuditActor) (model.MoveResponse, error) {
+func (s *OperationsService) Move(_ context.Context, sources []string, destination string, conflictPolicy string, actor model.AuditActor) (model.MoveResponse, error) {
 	if len(sources) == 0 {
 		s.audit.Log("move", actor, "failed", destination, map[string]any{"sources": sources, "destination": destination}, nil, "sources are required")
 		return model.MoveResponse{}, apierror.New("BAD_REQUEST", "sources are required", "sources", http.StatusBadRequest)
+	}
+
+	normalizedPolicy, err := normalizeConflictPolicy(conflictPolicy)
+	if err != nil {
+		s.audit.Log("move", actor, "failed", destination, map[string]any{"sources": sources, "destination": destination, "conflict_policy": conflictPolicy}, nil, err.Error())
+		return model.MoveResponse{}, err
 	}
 
 	destination = normalizeAPIPath(destination)
@@ -101,23 +107,47 @@ func (s *OperationsService) Move(_ context.Context, sources []string, destinatio
 		}
 
 		target := normalizeAPIPath(filepath.Join(destination, filepath.Base(source)))
-		if err := s.store.Rename(source, target); err != nil {
+		if source == target {
+			result.Moved = append(result.Moved, model.MoveCopyResult{From: source, To: target})
+			continue
+		}
+
+		resolvedTarget, skipped, resolveErr := resolveConflictTarget(s.store, target, normalizedPolicy)
+		if resolveErr != nil {
+			result.Failed = append(result.Failed, model.MoveCopyFailure{From: source, Reason: resolveErr.Error()})
+			s.audit.Log("move", actor, "failed", source, map[string]any{"from": source, "to": target, "conflict_policy": normalizedPolicy}, nil, resolveErr.Error())
+			continue
+		}
+		if skipped {
+			reason := "skipped: target already exists"
+			result.Failed = append(result.Failed, model.MoveCopyFailure{From: source, Reason: reason})
+			s.audit.Log("move", actor, "failed", source, map[string]any{"from": source, "to": target, "conflict_policy": normalizedPolicy}, nil, reason)
+			continue
+		}
+
+		if err := s.store.Rename(source, resolvedTarget); err != nil {
 			result.Failed = append(result.Failed, model.MoveCopyFailure{From: source, Reason: err.Error()})
 			s.audit.Log("move", actor, "failed", source, map[string]any{"from": source}, nil, err.Error())
 			continue
 		}
 
-		result.Moved = append(result.Moved, model.MoveCopyResult{From: source, To: target})
-		s.audit.Log("move", actor, "success", source, map[string]any{"from": source}, map[string]any{"to": target}, "")
+		result.Moved = append(result.Moved, model.MoveCopyResult{From: source, To: resolvedTarget})
+		s.audit.Log("move", actor, "success", source, map[string]any{"from": source}, map[string]any{"to": resolvedTarget}, "")
 	}
 
 	return result, nil
 }
 
-func (s *OperationsService) Copy(_ context.Context, sources []string, destination string, actor model.AuditActor) (model.CopyResponse, error) {
+func (s *OperationsService) Copy(_ context.Context, sources []string, destination string, conflictPolicy string, actor model.AuditActor) (model.CopyResponse, error) {
 	if len(sources) == 0 {
 		s.audit.Log("copy", actor, "failed", destination, map[string]any{"sources": sources, "destination": destination}, nil, "sources are required")
 		return model.CopyResponse{}, apierror.New("BAD_REQUEST", "sources are required", "sources", http.StatusBadRequest)
+	}
+
+	normalizedPolicy, err := normalizeConflictPolicy(conflictPolicy)
+	if err != nil {
+		s.audit.Log("copy", actor, "failed", destination, map[string]any{"sources": sources, "destination": destination, "conflict_policy": conflictPolicy}, nil, err.Error())
+		return model.CopyResponse{}, err
 	}
 
 	destination = normalizeAPIPath(destination)
@@ -149,27 +179,34 @@ func (s *OperationsService) Copy(_ context.Context, sources []string, destinatio
 		}
 
 		target := normalizeAPIPath(filepath.Join(destination, filepath.Base(source)))
-		targetResolved, err := s.store.Resolve(target)
+		resolvedTarget, skipped, resolveErr := resolveConflictTarget(s.store, target, normalizedPolicy)
+		if resolveErr != nil {
+			result.Failed = append(result.Failed, model.MoveCopyFailure{From: source, Reason: resolveErr.Error()})
+			s.audit.Log("copy", actor, "failed", source, map[string]any{"from": source, "to": target, "conflict_policy": normalizedPolicy}, nil, resolveErr.Error())
+			continue
+		}
+		if skipped {
+			reason := "skipped: target already exists"
+			result.Failed = append(result.Failed, model.MoveCopyFailure{From: source, Reason: reason})
+			s.audit.Log("copy", actor, "failed", source, map[string]any{"from": source, "to": target, "conflict_policy": normalizedPolicy}, nil, reason)
+			continue
+		}
+
+		resolvedTargetAbs, err := s.store.Resolve(resolvedTarget)
 		if err != nil {
 			result.Failed = append(result.Failed, model.MoveCopyFailure{From: source, Reason: err.Error()})
 			s.audit.Log("copy", actor, "failed", source, map[string]any{"from": source}, nil, err.Error())
 			continue
 		}
 
-		if _, err := os.Stat(targetResolved); err == nil {
-			result.Failed = append(result.Failed, model.MoveCopyFailure{From: source, Reason: "target already exists"})
-			s.audit.Log("copy", actor, "failed", source, map[string]any{"from": source}, nil, "target already exists")
-			continue
-		}
-
-		if err := copyRecursive(sourceResolved, targetResolved); err != nil {
+		if err := copyRecursive(sourceResolved, resolvedTargetAbs); err != nil {
 			result.Failed = append(result.Failed, model.MoveCopyFailure{From: source, Reason: err.Error()})
 			s.audit.Log("copy", actor, "failed", source, map[string]any{"from": source}, nil, err.Error())
 			continue
 		}
 
-		result.Copied = append(result.Copied, model.MoveCopyResult{From: source, To: target})
-		s.audit.Log("copy", actor, "success", source, map[string]any{"from": source}, map[string]any{"to": target}, "")
+		result.Copied = append(result.Copied, model.MoveCopyResult{From: source, To: resolvedTarget})
+		s.audit.Log("copy", actor, "success", source, map[string]any{"from": source}, map[string]any{"to": resolvedTarget}, "")
 	}
 
 	return result, nil
