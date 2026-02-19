@@ -57,7 +57,7 @@ func TestAuthRateLimitReturns429(t *testing.T) {
 
 	directoryService := service.NewDirectoryService(store)
 	directoryHandler := handler.NewDirectoryHandler(directoryService)
-	fileService := service.NewFileService(store, nil)
+	fileService := service.NewFileService(store, []string{}, "")
 	fileHandler := handler.NewFileHandler(fileService, 10*1024*1024)
 	trashRoot := filepath.Join(t.TempDir(), "trash")
 	trashIndexFile := filepath.Join(t.TempDir(), "trash-index.json")

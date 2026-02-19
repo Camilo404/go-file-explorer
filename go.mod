@@ -1,6 +1,6 @@
 module go-file-explorer
 
-go 1.24.0
+go 1.26.0
 
 require (
 	github.com/go-chi/chi/v5 v5.2.5
@@ -10,6 +10,7 @@ require (
 	github.com/rs/cors v1.11.1
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/crypto v0.48.0
+	golang.org/x/image v0.36.0
 	golang.org/x/time v0.14.0
 )
 

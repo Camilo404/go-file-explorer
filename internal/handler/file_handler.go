@@ -134,6 +134,34 @@ func (h *FileHandler) Preview(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, filename, info.ModTime(), file)
 }
 
+func (h *FileHandler) Thumbnail(w http.ResponseWriter, r *http.Request) {
+	requestedPath := strings.TrimSpace(r.URL.Query().Get("path"))
+	if requestedPath == "" {
+		writeError(w, apierror.New("BAD_REQUEST", "query parameter 'path' is required", "path", http.StatusBadRequest))
+		return
+	}
+
+	size := parseIntOrDefault(r.URL.Query().Get("size"), 256)
+	if size < 32 {
+		size = 32
+	}
+	if size > 512 {
+		size = 512
+	}
+
+	file, info, err := h.service.GetThumbnail(requestedPath, size)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	defer file.Close()
+
+	filename := filepath.Base(requestedPath) + ".jpg"
+	w.Header().Set("Content-Type", "image/jpeg")
+	w.Header().Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": filename}))
+	http.ServeContent(w, r, filename, info.ModTime(), file)
+}
+
 func (h *FileHandler) Info(w http.ResponseWriter, r *http.Request) {
 	requestedPath := strings.TrimSpace(r.URL.Query().Get("path"))
 	if requestedPath == "" {

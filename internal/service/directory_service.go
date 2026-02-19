@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -79,6 +80,13 @@ func (s *DirectoryService) List(_ context.Context, requestedPath string, page in
 			item.Size = info.Size()
 			item.SizeHuman = humanizeSize(info.Size())
 			item.Extension = strings.ToLower(filepath.Ext(entry.Name()))
+			if util.IsImageExtension(item.Extension) {
+				item.IsImage = true
+				item.PreviewURL = "/api/v1/files/preview?path=" + url.QueryEscape(apiPath)
+				if util.IsThumbnailExtension(item.Extension) {
+					item.ThumbnailURL = "/api/v1/files/thumbnail?path=" + url.QueryEscape(apiPath) + "&size=256"
+				}
+			}
 		}
 
 		items = append(items, item)

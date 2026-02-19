@@ -40,7 +40,7 @@ func main() {
 
 	directoryService := service.NewDirectoryService(store)
 	directoryHandler := handler.NewDirectoryHandler(directoryService)
-	fileService := service.NewFileService(store, cfg.AllowedMIMETypes)
+	fileService := service.NewFileService(store, cfg.AllowedMIMETypes, cfg.ThumbnailRoot)
 	fileHandler := handler.NewFileHandler(fileService, cfg.MaxUploadSize)
 	trashService, err := service.NewTrashService(store, cfg.TrashRoot, cfg.TrashIndexFile)
 	if err != nil {

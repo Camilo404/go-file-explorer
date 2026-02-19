@@ -48,6 +48,7 @@ func New(
 		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/files/upload", fileHandler.Upload)
 		api.With(authMiddleware.RequireAuth).Get("/files/download", fileHandler.Download)
 		api.With(authMiddleware.RequireAuth).Get("/files/preview", fileHandler.Preview)
+		api.With(authMiddleware.RequireAuth).Get("/files/thumbnail", fileHandler.Thumbnail)
 		api.With(authMiddleware.RequireAuth).Get("/files/info", fileHandler.Info)
 		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Put("/files/rename", operationsHandler.Rename)
 		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Put("/files/move", operationsHandler.Move)

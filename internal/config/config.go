@@ -31,6 +31,7 @@ type Config struct {
 	TrashRoot          string
 	TrashIndexFile     string
 	AuditLogFile       string
+	ThumbnailRoot      string
 }
 
 func Load() (*Config, error) {
@@ -57,6 +58,7 @@ func Load() (*Config, error) {
 		TrashRoot:          getEnv("TRASH_ROOT", "./state/trash"),
 		TrashIndexFile:     getEnv("TRASH_INDEX_FILE", "./state/trash-index.json"),
 		AuditLogFile:       getEnv("AUDIT_LOG_FILE", "./state/audit.log"),
+		ThumbnailRoot:      getEnv("THUMBNAIL_ROOT", "./state/thumbnails"),
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -97,6 +99,10 @@ func (c *Config) Validate() error {
 
 	if strings.TrimSpace(c.AuditLogFile) == "" {
 		return fmt.Errorf("AUDIT_LOG_FILE cannot be empty")
+	}
+
+	if strings.TrimSpace(c.ThumbnailRoot) == "" {
+		return fmt.Errorf("THUMBNAIL_ROOT cannot be empty")
 	}
 
 	return nil

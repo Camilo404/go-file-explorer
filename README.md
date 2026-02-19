@@ -6,6 +6,7 @@ REST API backend in Go for browsing, uploading, downloading, managing, and searc
 
 - Directory listing and creation
 - File upload, download, preview, metadata info, and directory ZIP download
+- Image thumbnails (JPEG) with caching and size controls
 - Rename, move, copy, soft-delete, and restore operations
 - Recursive search with filters and pagination
 - JWT authentication with role-based authorization
@@ -14,7 +15,7 @@ REST API backend in Go for browsing, uploading, downloading, managing, and searc
 
 ## Requirements
 
-- Go 1.24+
+- Go 1.26+
 - Optional: Docker + Docker Compose
 
 ## Quick Start (Local)
@@ -119,6 +120,7 @@ curl -s "http://localhost:8080/api/v1/search?q=report&path=/documents&type=file&
   - `POST /api/v1/files/upload`
   - `GET /api/v1/files/download`
   - `GET /api/v1/files/preview`
+  - `GET /api/v1/files/thumbnail`
   - `GET /api/v1/files/info`
 
 - Management
@@ -130,6 +132,16 @@ curl -s "http://localhost:8080/api/v1/search?q=report&path=/documents&type=file&
 
 - Search
   - `GET /api/v1/search?q=...&path=...&type=file|dir&ext=.pdf&page=1&limit=20`
+
+## Thumbnails
+
+Generate and serve cached thumbnails for images (JPEG output).
+
+```http
+GET /api/v1/files/thumbnail?path=/images/photo.jpg&size=256
+```
+
+Responses from list/search/info include `thumbnail_url` for supported images. Configure storage with `THUMBNAIL_ROOT` (default: `./state/thumbnails`).
 
 ## Tests
 

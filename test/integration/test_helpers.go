@@ -32,7 +32,8 @@ func newAuthedServer(t *testing.T, store *storage.Storage) (*httptest.Server, st
 
 	directoryService := service.NewDirectoryService(store)
 	directoryHandler := handler.NewDirectoryHandler(directoryService)
-	fileService := service.NewFileService(store, nil)
+	thumbnailRoot := filepath.Join(t.TempDir(), "thumbnails")
+	fileService := service.NewFileService(store, nil, thumbnailRoot)
 	fileHandler := handler.NewFileHandler(fileService, 10*1024*1024)
 	trashRoot := filepath.Join(t.TempDir(), "trash")
 	trashIndexFile := filepath.Join(t.TempDir(), "trash-index.json")
@@ -67,6 +68,7 @@ func newAuthedServer(t *testing.T, store *storage.Storage) (*httptest.Server, st
 		TrashRoot:          trashRoot,
 		TrashIndexFile:     trashIndexFile,
 		AuditLogFile:       auditLogFile,
+		ThumbnailRoot:      thumbnailRoot,
 	}
 
 	server := httptest.NewServer(router.New(cfg, authMiddleware, authHandler, directoryHandler, fileHandler, operationsHandler, searchHandler))

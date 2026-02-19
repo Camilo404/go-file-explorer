@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -13,6 +14,7 @@ import (
 
 	"go-file-explorer/internal/model"
 	"go-file-explorer/internal/storage"
+	"go-file-explorer/internal/util"
 	"go-file-explorer/pkg/apierror"
 )
 
@@ -155,6 +157,12 @@ func (s *SearchService) Search(ctx context.Context, query string, startPath stri
 		if isDir {
 			item.Size = 0
 			item.Extension = ""
+		} else if util.IsImageExtension(ext) {
+			item.IsImage = true
+			item.PreviewURL = "/api/v1/files/preview?path=" + url.QueryEscape(apiPath)
+			if util.IsThumbnailExtension(ext) {
+				item.ThumbnailURL = "/api/v1/files/thumbnail?path=" + url.QueryEscape(apiPath) + "&size=256"
+			}
 		}
 
 		items = append(items, item)

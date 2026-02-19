@@ -10,6 +10,9 @@ type FileItem struct {
 	SizeHuman    string    `json:"size_human,omitempty"`
 	MimeType     string    `json:"mime_type,omitempty"`
 	Extension    string    `json:"extension,omitempty"`
+	PreviewURL   string    `json:"preview_url,omitempty"`
+	ThumbnailURL string    `json:"thumbnail_url,omitempty"`
+	IsImage      bool      `json:"is_image,omitempty"`
 	ModifiedAt   time.Time `json:"modified_at"`
 	CreatedAt    time.Time `json:"created_at"`
 	MatchContext string    `json:"match_context,omitempty"`
