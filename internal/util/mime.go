@@ -29,9 +29,14 @@ func IsImageMIME(mimeType string) bool {
 	return strings.HasPrefix(cleaned, "image/")
 }
 
+func IsVideoMIME(mimeType string) bool {
+	cleaned := strings.ToLower(strings.TrimSpace(mimeType))
+	return strings.HasPrefix(cleaned, "video/")
+}
+
 func IsImageExtension(extension string) bool {
 	switch strings.ToLower(strings.TrimSpace(extension)) {
-	case ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tiff", ".tif", ".svg", ".ico", ".avif", ".heic", ".heif":
+	case ".png", ".apng", ".jpg", ".jpeg", ".jpe", ".jfif", ".pjpeg", ".pjp", ".gif", ".webp", ".bmp", ".dib", ".tiff", ".tif", ".svg", ".svgz", ".ico", ".cur", ".avif", ".heic", ".heif", ".jxl", ".jp2", ".j2k", ".jpf", ".jpm", ".mj2":
 		return true
 	default:
 		return false
@@ -49,7 +54,16 @@ func IsThumbnailMIME(mimeType string) bool {
 
 func IsThumbnailExtension(extension string) bool {
 	switch strings.ToLower(strings.TrimSpace(extension)) {
-	case ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif":
+	case ".jpg", ".jpeg", ".jpe", ".jfif", ".pjpeg", ".pjp", ".png", ".gif", ".webp", ".bmp", ".dib", ".tiff", ".tif":
+		return true
+	default:
+		return false
+	}
+}
+
+func IsVideoExtension(extension string) bool {
+	switch strings.ToLower(strings.TrimSpace(extension)) {
+	case ".mp4", ".m4v", ".mov", ".webm", ".mkv", ".avi", ".wmv", ".flv", ".mpeg", ".mpg", ".m2v", ".3gp", ".3g2", ".ts", ".mts", ".m2ts", ".ogv", ".qt", ".asf":
 		return true
 	default:
 		return false

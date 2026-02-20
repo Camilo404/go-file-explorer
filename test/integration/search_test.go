@@ -68,3 +68,65 @@ func TestSearchEndpointWithFilters(t *testing.T) {
 	require.Equal(t, "file", payload.Data.Items[0].Type)
 	require.Equal(t, 1, payload.Meta.Total)
 }
+
+func TestSearchEndpointWithExtensionOnly(t *testing.T) {
+	t.Parallel()
+
+	store, err := storage.New(t.TempDir())
+	require.NoError(t, err)
+
+	pdfFile, err := store.OpenForWrite("/documents/finance/annual-report.pdf")
+	require.NoError(t, err)
+	_, err = pdfFile.WriteString("pdf content")
+	require.NoError(t, err)
+	require.NoError(t, pdfFile.Close())
+
+	txtFile, err := store.OpenForWrite("/documents/finance/annual-report.txt")
+	require.NoError(t, err)
+	_, err = txtFile.WriteString("txt content")
+	require.NoError(t, err)
+	require.NoError(t, txtFile.Close())
+
+	server, accessToken, _ := newAuthedServer(t, store)
+	t.Cleanup(server.Close)
+
+	resp := doAuthRequest(t, http.MethodGet, server.URL+"/api/v1/search?path=/documents&type=file&ext=pdf&page=1&limit=20", accessToken)
+	t.Cleanup(func() { _ = resp.Body.Close() })
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var payload struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Items []struct {
+				Name string `json:"name"`
+				Path string `json:"path"`
+				Type string `json:"type"`
+			} `json:"items"`
+		} `json:"data"`
+		Meta struct {
+			Total int `json:"total"`
+		} `json:"meta"`
+	}
+
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&payload))
+	require.True(t, payload.Success)
+	require.Len(t, payload.Data.Items, 1)
+	require.Equal(t, "annual-report.pdf", payload.Data.Items[0].Name)
+	require.Equal(t, "/documents/finance/annual-report.pdf", payload.Data.Items[0].Path)
+	require.Equal(t, "file", payload.Data.Items[0].Type)
+	require.Equal(t, 1, payload.Meta.Total)
+}
+
+func TestSearchEndpointRequiresAtLeastOneFilter(t *testing.T) {
+	t.Parallel()
+
+	store, err := storage.New(t.TempDir())
+	require.NoError(t, err)
+
+	server, accessToken, _ := newAuthedServer(t, store)
+	t.Cleanup(server.Close)
+
+	resp := doAuthRequest(t, http.MethodGet, server.URL+"/api/v1/search?path=/", accessToken)
+	t.Cleanup(func() { _ = resp.Body.Close() })
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}

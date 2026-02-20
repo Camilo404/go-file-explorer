@@ -86,6 +86,9 @@ func (s *DirectoryService) List(_ context.Context, requestedPath string, page in
 				if util.IsThumbnailExtension(item.Extension) {
 					item.ThumbnailURL = "/api/v1/files/thumbnail?path=" + url.QueryEscape(apiPath) + "&size=256"
 				}
+			} else if util.IsVideoExtension(item.Extension) {
+				item.IsVideo = true
+				item.PreviewURL = "/api/v1/files/preview?path=" + url.QueryEscape(apiPath)
 			}
 		}
 

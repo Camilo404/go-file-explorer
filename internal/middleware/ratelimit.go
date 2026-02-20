@@ -43,6 +43,11 @@ func NewRateLimitMiddleware(generalRPM int, authRPM int) *RateLimitMiddleware {
 
 func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(strings.ToLower(r.URL.Path), "/api/v1/files/thumbnail") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		clientIP := extractClientIP(r)
 		limiter := m.getLimiter(clientIP)
 

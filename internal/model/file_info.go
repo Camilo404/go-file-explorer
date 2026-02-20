@@ -13,6 +13,7 @@ type FileItem struct {
 	PreviewURL   string    `json:"preview_url,omitempty"`
 	ThumbnailURL string    `json:"thumbnail_url,omitempty"`
 	IsImage      bool      `json:"is_image,omitempty"`
+	IsVideo      bool      `json:"is_video,omitempty"`
 	ModifiedAt   time.Time `json:"modified_at"`
 	CreatedAt    time.Time `json:"created_at"`
 	MatchContext string    `json:"match_context,omitempty"`

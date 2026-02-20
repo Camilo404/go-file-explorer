@@ -171,15 +171,6 @@ func (s *FileService) GetThumbnail(path string, size int) (*os.File, os.FileInfo
 	}
 	defer file.Close()
 
-	mimeType, err := util.DetectMIMEFromFile(file)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if !util.IsThumbnailMIME(mimeType) {
-		return nil, nil, apierror.New("UNSUPPORTED_TYPE", "thumbnail not supported for this MIME type", mimeType, http.StatusUnsupportedMediaType)
-	}
-
 	if err := os.MkdirAll(s.thumbnailRoot, 0o755); err != nil {
 		return nil, nil, err
 	}
@@ -237,7 +228,7 @@ func (s *FileService) GetThumbnail(path string, size int) (*os.File, os.FileInfo
 		return nil, nil, err
 	}
 
-	encodeErr := jpeg.Encode(thumbWriter, dst, &jpeg.Options{Quality: 80})
+	encodeErr := jpeg.Encode(thumbWriter, dst, &jpeg.Options{Quality: 95})
 	closeErr := thumbWriter.Close()
 	if encodeErr != nil {
 		return nil, nil, encodeErr
@@ -338,12 +329,30 @@ func (s *FileService) GetInfo(path string) (model.FileItem, error) {
 		mimeType, detectErr := util.DetectMIMEFromFile(file)
 		if detectErr == nil {
 			item.MimeType = mimeType
-			if util.IsImageMIME(mimeType) {
+			isImage := util.IsImageMIME(mimeType)
+			if !isImage && strings.EqualFold(mimeType, "application/octet-stream") {
+				isImage = util.IsImageExtension(item.Extension)
+			}
+
+			isVideo := util.IsVideoMIME(mimeType)
+			if !isVideo && strings.EqualFold(mimeType, "application/octet-stream") {
+				isVideo = util.IsVideoExtension(item.Extension)
+			}
+
+			if isImage {
 				item.IsImage = true
 				item.PreviewURL = "/api/v1/files/preview?path=" + url.QueryEscape(item.Path)
-				if util.IsThumbnailMIME(mimeType) {
+				thumbnailSupported := util.IsThumbnailMIME(mimeType)
+				if !thumbnailSupported && strings.EqualFold(mimeType, "application/octet-stream") {
+					thumbnailSupported = util.IsThumbnailExtension(item.Extension)
+				}
+
+				if thumbnailSupported {
 					item.ThumbnailURL = "/api/v1/files/thumbnail?path=" + url.QueryEscape(item.Path) + "&size=256"
 				}
+			} else if isVideo {
+				item.IsVideo = true
+				item.PreviewURL = "/api/v1/files/preview?path=" + url.QueryEscape(item.Path)
 			}
 		}
 	}

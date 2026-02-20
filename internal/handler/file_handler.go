@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"io"
 	"mime"
 	"net/http"
@@ -156,12 +157,18 @@ func (h *FileHandler) Thumbnail(w http.ResponseWriter, r *http.Request) {
 	if size < 32 {
 		size = 32
 	}
-	if size > 512 {
-		size = 512
+	if size > 2048 {
+		size = 2048
 	}
 
 	file, info, err := h.service.GetThumbnail(requestedPath, size)
 	if err != nil {
+		var apiErr *apierror.APIError
+		if errors.As(err, &apiErr) && apiErr.Code == "UNSUPPORTED_TYPE" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
 		writeError(w, err)
 		return
 	}

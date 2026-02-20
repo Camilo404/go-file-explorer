@@ -38,8 +38,14 @@ func NewSearchService(store *storage.Storage, maxDepth int, timeout time.Duratio
 
 func (s *SearchService) Search(ctx context.Context, query string, startPath string, itemType string, extension string, page int, limit int) (map[string]any, model.Meta, error) {
 	query = strings.TrimSpace(query)
-	if query == "" {
-		return nil, model.Meta{}, apierror.New("BAD_REQUEST", "query parameter 'q' is required", "q", http.StatusBadRequest)
+	normalizedType := strings.ToLower(strings.TrimSpace(itemType))
+	normalizedExt := strings.ToLower(strings.TrimSpace(extension))
+	if normalizedExt != "" && !strings.HasPrefix(normalizedExt, ".") {
+		normalizedExt = "." + normalizedExt
+	}
+
+	if query == "" && normalizedType == "" && normalizedExt == "" {
+		return nil, model.Meta{}, apierror.New("BAD_REQUEST", "at least one filter is required: q, type, or ext", "q", http.StatusBadRequest)
 	}
 
 	if page < 1 {
@@ -70,12 +76,6 @@ func (s *SearchService) Search(ctx context.Context, query string, startPath stri
 
 	searchCtx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
-
-	normalizedType := strings.ToLower(strings.TrimSpace(itemType))
-	normalizedExt := strings.ToLower(strings.TrimSpace(extension))
-	if normalizedExt != "" && !strings.HasPrefix(normalizedExt, ".") {
-		normalizedExt = "." + normalizedExt
-	}
 
 	queryLower := strings.ToLower(query)
 	items := make([]model.FileItem, 0)
@@ -115,9 +115,11 @@ func (s *SearchService) Search(ctx context.Context, query string, startPath stri
 			return nil
 		}
 
-		nameLower := strings.ToLower(entry.Name())
-		if !strings.Contains(nameLower, queryLower) {
-			return nil
+		if queryLower != "" {
+			nameLower := strings.ToLower(entry.Name())
+			if !strings.Contains(nameLower, queryLower) {
+				return nil
+			}
 		}
 
 		isDir := entry.IsDir()
@@ -163,6 +165,9 @@ func (s *SearchService) Search(ctx context.Context, query string, startPath stri
 			if util.IsThumbnailExtension(ext) {
 				item.ThumbnailURL = "/api/v1/files/thumbnail?path=" + url.QueryEscape(apiPath) + "&size=256"
 			}
+		} else if util.IsVideoExtension(ext) {
+			item.IsVideo = true
+			item.PreviewURL = "/api/v1/files/preview?path=" + url.QueryEscape(apiPath)
 		}
 
 		items = append(items, item)
