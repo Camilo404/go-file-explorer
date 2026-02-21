@@ -20,6 +20,7 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 COPY --from=builder /bin/go-file-explorer /usr/local/bin/go-file-explorer
+COPY docs /app/docs
 COPY .env.example /app/.env.example
 COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
