@@ -141,6 +141,7 @@ func (h *FileHandler) Download(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", mimeType)
 	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filename}))
+	w.Header().Set("Accept-Ranges", "bytes")
 	http.ServeContent(w, r, filename, info.ModTime(), file)
 }
 
@@ -161,6 +162,8 @@ func (h *FileHandler) Preview(w http.ResponseWriter, r *http.Request) {
 	filename := filepath.Base(requestedPath)
 	w.Header().Set("Content-Type", mimeType)
 	w.Header().Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": filename}))
+	w.Header().Set("Accept-Ranges", "bytes")
+	w.Header().Set("Cache-Control", "private, max-age=3600")
 	http.ServeContent(w, r, filename, info.ModTime(), file)
 }
 
@@ -195,6 +198,7 @@ func (h *FileHandler) Thumbnail(w http.ResponseWriter, r *http.Request) {
 	filename := filepath.Base(requestedPath) + ".jpg"
 	w.Header().Set("Content-Type", "image/jpeg")
 	w.Header().Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": filename}))
+	w.Header().Set("Cache-Control", "public, max-age=86400, immutable")
 	http.ServeContent(w, r, filename, info.ModTime(), file)
 }
 

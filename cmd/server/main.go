@@ -91,11 +91,11 @@ func main() {
 	appRouter := router.New(cfg, authMiddleware, authHandler, directoryHandler, fileHandler, operationsHandler, searchHandler, auditHandler, jobsHandler, docsHandler, userHandler, storageHandler, shareHandler)
 
 	server := &http.Server{
-		Addr:         ":" + cfg.ServerPort,
-		Handler:      appRouter,
-		ReadTimeout:  cfg.ServerReadTimeout,
-		WriteTimeout: cfg.ServerWriteTimeout,
-		IdleTimeout:  cfg.ServerIdleTimeout,
+		Addr:              ":" + cfg.ServerPort,
+		Handler:           appRouter,
+		ReadHeaderTimeout: cfg.ServerReadHeaderTimeout,
+		WriteTimeout:      cfg.ServerWriteTimeout,
+		IdleTimeout:       cfg.ServerIdleTimeout,
 	}
 
 	go func() {

@@ -119,5 +119,7 @@ func (h *ShareHandler) PublicDownload(w http.ResponseWriter, r *http.Request) {
 	filename := filepath.Base(record.Path)
 	w.Header().Set("Content-Type", mimeType)
 	w.Header().Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": filename}))
+	w.Header().Set("Accept-Ranges", "bytes")
+	w.Header().Set("Cache-Control", "private, max-age=3600")
 	http.ServeContent(w, r, filename, info.ModTime(), file)
 }

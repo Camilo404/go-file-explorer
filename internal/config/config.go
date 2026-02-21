@@ -11,13 +11,15 @@ import (
 )
 
 type Config struct {
-	ServerPort         string
-	ServerReadTimeout  time.Duration
-	ServerWriteTimeout time.Duration
-	ServerIdleTimeout  time.Duration
-	RequestTimeout     time.Duration
-	StorageRoot        string
-	MaxUploadSize      int64
+	ServerPort              string
+	ServerReadHeaderTimeout time.Duration
+	ServerWriteTimeout      time.Duration
+	ServerIdleTimeout       time.Duration
+	RequestTimeout          time.Duration
+	TransferTimeout         time.Duration
+	TransferIdleTimeout     time.Duration
+	StorageRoot             string
+	MaxUploadSize           int64
 	JWTSecret          string
 	JWTAccessTTL       time.Duration
 	JWTRefreshTTL      time.Duration
@@ -40,11 +42,13 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	cfg := &Config{
-		ServerPort:         getEnv("SERVER_PORT", "8080"),
-		ServerReadTimeout:  getDuration("SERVER_READ_TIMEOUT", 15*time.Second),
-		ServerWriteTimeout: getDuration("SERVER_WRITE_TIMEOUT", 30*time.Second),
-		ServerIdleTimeout:  getDuration("SERVER_IDLE_TIMEOUT", 120*time.Second),
-		RequestTimeout:     getDuration("REQUEST_TIMEOUT", 30*time.Second),
+		ServerPort:              getEnv("SERVER_PORT", "8080"),
+		ServerReadHeaderTimeout: getDuration("SERVER_READ_HEADER_TIMEOUT", 5*time.Second),
+		ServerWriteTimeout:      getDuration("SERVER_WRITE_TIMEOUT", 10*time.Minute),
+		ServerIdleTimeout:       getDuration("SERVER_IDLE_TIMEOUT", 120*time.Second),
+		RequestTimeout:          getDuration("REQUEST_TIMEOUT", 30*time.Second),
+		TransferTimeout:         getDuration("TRANSFER_TIMEOUT", 10*time.Minute),
+		TransferIdleTimeout:     getDuration("TRANSFER_IDLE_TIMEOUT", 60*time.Second),
 		StorageRoot:        getEnv("STORAGE_ROOT", "./data"),
 		MaxUploadSize:      getInt64("MAX_UPLOAD_SIZE", 1073741824),
 		JWTSecret:          strings.TrimSpace(os.Getenv("JWT_SECRET")),

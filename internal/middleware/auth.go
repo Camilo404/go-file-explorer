@@ -27,13 +27,25 @@ func NewAuthMiddleware(validator tokenValidator) *AuthMiddleware {
 
 func (m *AuthMiddleware) RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var token string
+
+		// 1. Try Authorization header (preferred).
 		header := strings.TrimSpace(r.Header.Get("Authorization"))
-		if header == "" || !strings.HasPrefix(strings.ToLower(header), "bearer ") {
-			writeUnauthorized(w, "UNAUTHORIZED", "missing or invalid authorization header")
+		if header != "" && strings.HasPrefix(strings.ToLower(header), "bearer ") {
+			token = strings.TrimSpace(header[7:])
+		}
+
+		// 2. Fallback to ?token= query parameter (needed for <video>/<img> src
+		//    attributes where the browser cannot set custom headers).
+		if token == "" {
+			token = strings.TrimSpace(r.URL.Query().Get("token"))
+		}
+
+		if token == "" {
+			writeUnauthorized(w, "UNAUTHORIZED", "missing or invalid authorization")
 			return
 		}
 
-		token := strings.TrimSpace(header[7:])
 		claims, err := m.validator.ValidateToken(token, "access")
 		if err != nil {
 			writeUnauthorized(w, "UNAUTHORIZED", "invalid or expired token")
