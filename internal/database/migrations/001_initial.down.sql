@@ -1,0 +1,7 @@
+DROP TABLE IF EXISTS job_items;
+DROP TABLE IF EXISTS jobs;
+DROP TABLE IF EXISTS trash_records;
+DROP TABLE IF EXISTS shares;
+DROP TABLE IF EXISTS audit_entries;
+DROP TABLE IF EXISTS refresh_tokens;
+DROP TABLE IF EXISTS users;

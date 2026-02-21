@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"go-file-explorer/internal/model"
+	"go-file-explorer/internal/repository"
 	"go-file-explorer/pkg/apierror"
 )
 
@@ -17,20 +18,36 @@ type queuedOperationJob struct {
 	jobID string
 }
 
-type JobService struct {
-	operations *OperationsService
-	mu         sync.RWMutex
-	jobs       map[string]*model.JobData
-	requests   map[string]model.JobOperationRequest
-	queue      chan queuedOperationJob
+type JobUpdate struct {
+	JobID          string `json:"job_id"`
+	Status         string `json:"status"`
+	Progress       int    `json:"progress"`
+	ProcessedItems int    `json:"processed_items"`
+	TotalItems     int    `json:"total_items"`
+	SuccessItems   int    `json:"success_items"`
+	FailedItems    int    `json:"failed_items"`
 }
 
-func NewJobService(operations *OperationsService) *JobService {
+type JobService struct {
+	operations  *OperationsService
+	mu          sync.RWMutex
+	jobs        map[string]*model.JobData
+	requests    map[string]model.JobOperationRequest
+	queue       chan queuedOperationJob
+	subsMu      sync.RWMutex
+	subscribers map[string][]chan JobUpdate
+
+	jobRepo *repository.JobRepository
+}
+
+func NewJobService(operations *OperationsService, jobRepo *repository.JobRepository) *JobService {
 	s := &JobService{
-		operations: operations,
-		jobs:       map[string]*model.JobData{},
-		requests:   map[string]model.JobOperationRequest{},
-		queue:      make(chan queuedOperationJob, 256),
+		operations:  operations,
+		jobs:        map[string]*model.JobData{},
+		requests:    map[string]model.JobOperationRequest{},
+		queue:       make(chan queuedOperationJob, 256),
+		subscribers: map[string][]chan JobUpdate{},
+		jobRepo:     jobRepo,
 	}
 
 	go s.workerLoop()
@@ -85,6 +102,8 @@ func (s *JobService) CreateOperationJob(request model.JobOperationRequest, actor
 	s.jobs[job.JobID] = job
 	s.requests[job.JobID] = request
 	s.mu.Unlock()
+
+	s.persistJobCreate(job)
 
 	s.queue <- queuedOperationJob{jobID: job.JobID}
 
@@ -154,6 +173,18 @@ func (s *JobService) process(jobID string) {
 	job.Progress = 5
 	job.StartedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	s.mu.Unlock()
+
+	s.persistJobUpdate(job)
+
+	s.notifySubscribers(jobID, JobUpdate{
+		JobID:          jobID,
+		Status:         "running",
+		Progress:       5,
+		ProcessedItems: 0,
+		TotalItems:     job.TotalItems,
+		SuccessItems:   0,
+		FailedItems:    0,
+	})
 
 	ctx := context.Background()
 	items := make([]model.JobItemResult, 0, job.TotalItems)
@@ -255,6 +286,27 @@ func (s *JobService) finalize(jobID string, items []model.JobItemResult) {
 	default:
 		job.Status = "completed"
 	}
+
+	s.notifySubscribers(jobID, JobUpdate{
+		JobID:          jobID,
+		Status:         job.Status,
+		Progress:       job.Progress,
+		ProcessedItems: job.ProcessedItems,
+		TotalItems:     job.TotalItems,
+		SuccessItems:   job.SuccessItems,
+		FailedItems:    job.FailedItems,
+	})
+
+	s.persistJobUpdate(job)
+	s.persistJobItems(jobID, items)
+
+	// Close all subscriber channels for this job
+	s.subsMu.Lock()
+	for _, ch := range s.subscribers[jobID] {
+		close(ch)
+	}
+	delete(s.subscribers, jobID)
+	s.subsMu.Unlock()
 }
 
 func (s *JobService) getAuthorizedJob(jobID string, actor model.AuditActor) (*model.JobData, error) {
@@ -269,6 +321,49 @@ func (s *JobService) getAuthorizedJob(jobID string, actor model.AuditActor) (*mo
 	return job, nil
 }
 
+func (s *JobService) Subscribe(jobID string) (chan JobUpdate, error) {
+	s.mu.RLock()
+	_, exists := s.jobs[jobID]
+	s.mu.RUnlock()
+	if !exists {
+		return nil, apierror.New("NOT_FOUND", "job not found", jobID, http.StatusNotFound)
+	}
+
+	ch := make(chan JobUpdate, 64)
+
+	s.subsMu.Lock()
+	s.subscribers[jobID] = append(s.subscribers[jobID], ch)
+	s.subsMu.Unlock()
+
+	return ch, nil
+}
+
+func (s *JobService) Unsubscribe(jobID string, ch chan JobUpdate) {
+	s.subsMu.Lock()
+	defer s.subsMu.Unlock()
+
+	subs := s.subscribers[jobID]
+	for i, sub := range subs {
+		if sub == ch {
+			s.subscribers[jobID] = append(subs[:i], subs[i+1:]...)
+			return
+		}
+	}
+}
+
+func (s *JobService) notifySubscribers(jobID string, update JobUpdate) {
+	s.subsMu.RLock()
+	subs := s.subscribers[jobID]
+	s.subsMu.RUnlock()
+
+	for _, ch := range subs {
+		select {
+		case ch <- update:
+		default:
+		}
+	}
+}
+
 func cloneJob(value *model.JobData, includeItems bool) model.JobData {
 	cloned := *value
 	if includeItems {
@@ -277,4 +372,22 @@ func cloneJob(value *model.JobData, includeItems bool) model.JobData {
 	}
 	cloned.Items = nil
 	return cloned
+}
+
+// persistJobCreate saves a newly created job to the DB.
+func (s *JobService) persistJobCreate(job *model.JobData) {
+	ctx := context.Background()
+	_ = s.jobRepo.Create(ctx, *job)
+}
+
+// persistJobUpdate saves job state changes to the DB.
+func (s *JobService) persistJobUpdate(job *model.JobData) {
+	ctx := context.Background()
+	_ = s.jobRepo.Update(ctx, *job)
+}
+
+// persistJobItems saves completed job items to the DB.
+func (s *JobService) persistJobItems(jobID string, items []model.JobItemResult) {
+	ctx := context.Background()
+	_ = s.jobRepo.SaveItems(ctx, jobID, items)
 }

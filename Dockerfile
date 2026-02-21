@@ -24,7 +24,6 @@ COPY --from=builder /bin/go-file-explorer /usr/local/bin/go-file-explorer
 RUN mkdir -p /data /app/state
 
 ENV STORAGE_ROOT=/data
-ENV USERS_FILE=/app/state/users.json
 ENV SERVER_PORT=8080
 
 EXPOSE 8080

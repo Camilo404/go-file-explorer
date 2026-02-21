@@ -107,3 +107,26 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 
 	writeSuccess(w, http.StatusOK, user, nil)
 }
+
+func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	claims, ok := middleware.ClaimsFromContext(r.Context())
+	if !ok {
+		writeError(w, apierror.New("UNAUTHORIZED", "authentication required", "", http.StatusUnauthorized))
+		return
+	}
+
+	var payload model.ChangePasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, apierror.New("BAD_REQUEST", "invalid JSON body", "", http.StatusBadRequest))
+		return
+	}
+
+	if err := h.service.ChangePassword(claims.UserID, payload.CurrentPassword, payload.NewPassword); err != nil {
+		writeError(w, err)
+		return
+	}
+
+	writeSuccess(w, http.StatusOK, map[string]any{"changed": true}, nil)
+}

@@ -21,6 +21,9 @@ func New(
 	auditHandler *handler.AuditHandler,
 	jobsHandler *handler.JobsHandler,
 	docsHandler *handler.DocsHandler,
+	userHandler *handler.UserHandler,
+	storageHandler *handler.StorageHandler,
+	shareHandler *handler.ShareHandler,
 ) http.Handler {
 	r := chi.NewRouter()
 	rateLimitMiddleware := middleware.NewRateLimitMiddleware(cfg.RateLimitRPM, cfg.AuthRateLimitRPM)
@@ -47,6 +50,15 @@ func New(
 			auth.Post("/refresh", authHandler.Refresh)
 			auth.With(authMiddleware.RequireAuth).Post("/logout", authHandler.Logout)
 			auth.With(authMiddleware.RequireAuth).Get("/me", authHandler.Me)
+			auth.With(authMiddleware.RequireAuth).Put("/change-password", authHandler.ChangePassword)
+		})
+
+		api.Route("/users", func(users chi.Router) {
+			users.Use(authMiddleware.RequireAuth, authMiddleware.RequireRoles("admin"))
+			users.Get("/", userHandler.List)
+			users.Get("/{id}", userHandler.Get)
+			users.Put("/{id}", userHandler.Update)
+			users.Delete("/{id}", userHandler.Delete)
 		})
 
 		api.With(authMiddleware.RequireAuth).Get("/files", directoryHandler.List)
@@ -62,12 +74,25 @@ func New(
 		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Delete("/files", operationsHandler.Delete)
 		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/files/restore", operationsHandler.Restore)
 		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Get("/trash", operationsHandler.ListTrash)
+		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Delete("/trash/{id}", operationsHandler.PermanentDeleteTrash)
+		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Delete("/trash", operationsHandler.EmptyTrash)
 		api.With(authMiddleware.RequireAuth).Get("/search", searchHandler.Search)
 		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("admin")).Get("/audit", auditHandler.List)
 		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/jobs/operations", jobsHandler.CreateOperationJob)
 		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Get("/jobs/{job_id}", jobsHandler.GetJob)
 		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Get("/jobs/{job_id}/items", jobsHandler.GetJobItems)
+		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Get("/jobs/{job_id}/stream", jobsHandler.Stream)
 		api.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/directories", directoryHandler.Create)
+		api.With(authMiddleware.RequireAuth).Get("/storage/stats", storageHandler.Stats)
+
+		api.Route("/shares", func(shares chi.Router) {
+			shares.Use(authMiddleware.RequireAuth)
+			shares.With(authMiddleware.RequireRoles("editor", "admin")).Post("/", shareHandler.Create)
+			shares.Get("/", shareHandler.List)
+			shares.With(authMiddleware.RequireRoles("editor", "admin")).Delete("/{id}", shareHandler.Revoke)
+		})
+
+		api.Get("/public/shares/{token}", shareHandler.PublicDownload)
 	})
 
 	return r

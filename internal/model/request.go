@@ -110,6 +110,15 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+type UpdateUserRequest struct {
+	Role string `json:"role"`
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
 type RegisterRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -155,4 +164,29 @@ type JobData struct {
 type JobItemsData struct {
 	JobID string          `json:"job_id"`
 	Items []JobItemResult `json:"items"`
+}
+
+type StorageStats struct {
+	TotalSize      int64  `json:"total_size"`
+	TotalSizeHuman string `json:"total_size_human"`
+	FileCount      int    `json:"file_count"`
+	DirectoryCount int    `json:"directory_count"`
+}
+
+type CreateShareRequest struct {
+	Path      string `json:"path"`
+	ExpiresIn string `json:"expires_in"`
+}
+
+type ShareRecord struct {
+	ID        string `json:"id"`
+	Token     string `json:"token"`
+	Path      string `json:"path"`
+	CreatedBy string `json:"created_by"`
+	CreatedAt string `json:"created_at"`
+	ExpiresAt string `json:"expires_at"`
+}
+
+type ShareListData struct {
+	Shares []ShareRecord `json:"shares"`
 }

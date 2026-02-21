@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
+
 	"go-file-explorer/internal/model"
 	"go-file-explorer/internal/service"
 	"go-file-explorer/pkg/apierror"
@@ -133,4 +135,29 @@ func (h *OperationsHandler) ListTrash(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeSuccess(w, http.StatusOK, map[string]any{"items": records}, nil)
+}
+
+func (h *OperationsHandler) PermanentDeleteTrash(w http.ResponseWriter, r *http.Request) {
+	trashID := chi.URLParam(r, "id")
+	if trashID == "" {
+		writeError(w, apierror.New("BAD_REQUEST", "trash id is required", "id", http.StatusBadRequest))
+		return
+	}
+
+	if err := h.service.PermanentDeleteTrash(r.Context(), trashID, actorFromRequest(r)); err != nil {
+		writeError(w, apierror.New("NOT_FOUND", "trash item not found", trashID, http.StatusNotFound))
+		return
+	}
+
+	writeSuccess(w, http.StatusOK, map[string]any{"deleted": true}, nil)
+}
+
+func (h *OperationsHandler) EmptyTrash(w http.ResponseWriter, r *http.Request) {
+	count, err := h.service.EmptyTrash(r.Context(), actorFromRequest(r))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	writeSuccess(w, http.StatusOK, map[string]any{"deleted_count": count}, nil)
 }

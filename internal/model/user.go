@@ -25,6 +25,10 @@ type AuthUser struct {
 	Role     string `json:"role"`
 }
 
+type AuthUserList struct {
+	Users []AuthUser `json:"users"`
+}
+
 type TokenPair struct {
 	AccessToken  string   `json:"access_token"`
 	RefreshToken string   `json:"refresh_token"`

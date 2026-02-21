@@ -24,14 +24,16 @@ type Config struct {
 	CORSOrigins        []string
 	RateLimitRPM       int
 	AuthRateLimitRPM   int
-	SearchMaxDepth     int
-	SearchTimeout      time.Duration
-	UsersFile          string
-	AllowedMIMETypes   []string
-	TrashRoot          string
-	TrashIndexFile     string
-	AuditLogFile       string
-	ThumbnailRoot      string
+	SearchMaxDepth   int
+	SearchTimeout    time.Duration
+	AllowedMIMETypes []string
+	TrashRoot        string
+	ThumbnailRoot    string
+
+	// Database (required)
+	DatabaseURL string
+	DBMaxConns  int32
+	DBMinConns  int32
 }
 
 func Load() (*Config, error) {
@@ -51,14 +53,16 @@ func Load() (*Config, error) {
 		CORSOrigins:        splitCSV(getEnv("CORS_ORIGINS", "*")),
 		RateLimitRPM:       getInt("RATE_LIMIT_RPM", 100),
 		AuthRateLimitRPM:   getInt("AUTH_RATE_LIMIT_RPM", 10),
-		SearchMaxDepth:     getInt("SEARCH_MAX_DEPTH", 10),
-		SearchTimeout:      getDuration("SEARCH_TIMEOUT", 30*time.Second),
-		UsersFile:          getEnv("USERS_FILE", "./users.json"),
-		AllowedMIMETypes:   splitCSV(strings.TrimSpace(os.Getenv("ALLOWED_MIME_TYPES"))),
-		TrashRoot:          getEnv("TRASH_ROOT", "./state/trash"),
-		TrashIndexFile:     getEnv("TRASH_INDEX_FILE", "./state/trash-index.json"),
-		AuditLogFile:       getEnv("AUDIT_LOG_FILE", "./state/audit.log"),
-		ThumbnailRoot:      getEnv("THUMBNAIL_ROOT", "./state/thumbnails"),
+		SearchMaxDepth:   getInt("SEARCH_MAX_DEPTH", 10),
+		SearchTimeout:    getDuration("SEARCH_TIMEOUT", 30*time.Second),
+		AllowedMIMETypes: splitCSV(strings.TrimSpace(os.Getenv("ALLOWED_MIME_TYPES"))),
+		TrashRoot:        getEnv("TRASH_ROOT", "./state/trash"),
+		ThumbnailRoot:    getEnv("THUMBNAIL_ROOT", "./state/thumbnails"),
+
+		DatabaseURL: strings.TrimSpace(os.Getenv("DATABASE_URL")),
+
+		DBMaxConns:  int32(getInt("DB_MAX_CONNS", 10)),
+		DBMinConns:  int32(getInt("DB_MIN_CONNS", 2)),
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -93,16 +97,12 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("TRASH_ROOT cannot be empty")
 	}
 
-	if strings.TrimSpace(c.TrashIndexFile) == "" {
-		return fmt.Errorf("TRASH_INDEX_FILE cannot be empty")
-	}
-
-	if strings.TrimSpace(c.AuditLogFile) == "" {
-		return fmt.Errorf("AUDIT_LOG_FILE cannot be empty")
-	}
-
 	if strings.TrimSpace(c.ThumbnailRoot) == "" {
 		return fmt.Errorf("THUMBNAIL_ROOT cannot be empty")
+	}
+
+	if strings.TrimSpace(c.DatabaseURL) == "" {
+		return fmt.Errorf("DATABASE_URL is required")
 	}
 
 	return nil

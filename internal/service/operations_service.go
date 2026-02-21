@@ -276,8 +276,29 @@ func (s *OperationsService) Restore(_ context.Context, paths []string, actor mod
 	return result, nil
 }
 
-func (s *OperationsService) ListTrash(_ context.Context, includeRestored bool) ([]TrashRecord, error) {
+func (s *OperationsService) ListTrash(_ context.Context, includeRestored bool) ([]model.TrashRecord, error) {
 	return s.trash.List(includeRestored)
+}
+
+func (s *OperationsService) PermanentDeleteTrash(_ context.Context, trashID string, actor model.AuditActor) error {
+	if err := s.trash.PermanentDelete(trashID); err != nil {
+		s.audit.Log("permanent_delete", actor, "failed", trashID, map[string]any{"trash_id": trashID}, nil, err.Error())
+		return err
+	}
+
+	s.audit.Log("permanent_delete", actor, "success", trashID, map[string]any{"trash_id": trashID}, nil, "")
+	return nil
+}
+
+func (s *OperationsService) EmptyTrash(_ context.Context, actor model.AuditActor) (int, error) {
+	count, err := s.trash.EmptyTrash()
+	if err != nil {
+		s.audit.Log("empty_trash", actor, "failed", "", nil, nil, err.Error())
+		return count, err
+	}
+
+	s.audit.Log("empty_trash", actor, "success", "", nil, map[string]any{"deleted_count": count}, "")
+	return count, nil
 }
 
 func copyRecursive(source string, target string) error {

@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"go-file-explorer/internal/config"
+	"go-file-explorer/internal/database"
 	"go-file-explorer/internal/handler"
 	"go-file-explorer/internal/middleware"
+	"go-file-explorer/internal/repository"
 	"go-file-explorer/internal/router"
 	"go-file-explorer/internal/service"
 	"go-file-explorer/internal/storage"
@@ -30,7 +32,32 @@ func main() {
 		slog.Error("failed to initialize storage", "error", err)
 		os.Exit(1)
 	}
-	authService, err := service.NewAuthService(cfg.UsersFile, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
+
+	// ── PostgreSQL ───────────────────────────────────────────────────
+	slog.Info("connecting to PostgreSQL")
+	db, err := database.New(context.Background(), cfg.DatabaseURL, cfg.DBMaxConns, cfg.DBMinConns)
+	if err != nil {
+		slog.Error("failed to connect to database", "error", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	if err := db.EnsureSchema(context.Background()); err != nil {
+		slog.Error("failed to ensure database schema", "error", err)
+		os.Exit(1)
+	}
+
+	pool := db.Pool
+	userRepo := repository.NewUserRepository(pool)
+	tokenRepo := repository.NewTokenRepository(pool)
+	auditRepo := repository.NewAuditRepository(pool)
+	shareRepo := repository.NewShareRepository(pool)
+	trashRepo := repository.NewTrashRepository(pool)
+	jobRepo := repository.NewJobRepository(pool)
+	slog.Info("database ready")
+
+	// ── Auth service ─────────────────────────────────────────────────
+	authService, err := service.NewAuthService(cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL, userRepo, tokenRepo)
 	if err != nil {
 		slog.Error("failed to initialize auth service", "error", err)
 		os.Exit(1)
@@ -42,25 +69,26 @@ func main() {
 	directoryHandler := handler.NewDirectoryHandler(directoryService)
 	fileService := service.NewFileService(store, cfg.AllowedMIMETypes, cfg.ThumbnailRoot)
 	fileHandler := handler.NewFileHandler(fileService, cfg.MaxUploadSize)
-	trashService, err := service.NewTrashService(store, cfg.TrashRoot, cfg.TrashIndexFile)
+	trashService, err := service.NewTrashService(store, cfg.TrashRoot, trashRepo)
 	if err != nil {
 		slog.Error("failed to initialize trash service", "error", err)
 		os.Exit(1)
 	}
-	auditService, err := service.NewAuditService(cfg.AuditLogFile)
-	if err != nil {
-		slog.Error("failed to initialize audit service", "error", err)
-		os.Exit(1)
-	}
+	trashService.SetThumbnailRoot(cfg.ThumbnailRoot)
+	auditService := service.NewAuditService(auditRepo)
 	auditHandler := handler.NewAuditHandler(auditService)
 	docsHandler := handler.NewDocsHandler("./docs/openapi.yaml")
 	operationsService := service.NewOperationsService(store, trashService, auditService)
 	operationsHandler := handler.NewOperationsHandler(operationsService)
-	jobService := service.NewJobService(operationsService)
+	jobService := service.NewJobService(operationsService, jobRepo)
 	jobsHandler := handler.NewJobsHandler(jobService)
 	searchService := service.NewSearchService(store, cfg.SearchMaxDepth, cfg.SearchTimeout)
 	searchHandler := handler.NewSearchHandler(searchService)
-	appRouter := router.New(cfg, authMiddleware, authHandler, directoryHandler, fileHandler, operationsHandler, searchHandler, auditHandler, jobsHandler, docsHandler)
+	userHandler := handler.NewUserHandler(authService)
+	storageHandler := handler.NewStorageHandler(store)
+	shareService := service.NewShareService(shareRepo)
+	shareHandler := handler.NewShareHandler(shareService, fileService)
+	appRouter := router.New(cfg, authMiddleware, authHandler, directoryHandler, fileHandler, operationsHandler, searchHandler, auditHandler, jobsHandler, docsHandler, userHandler, storageHandler, shareHandler)
 
 	server := &http.Server{
 		Addr:         ":" + cfg.ServerPort,

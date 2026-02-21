@@ -31,7 +31,15 @@ REST API backend in Go for browsing, uploading, downloading, managing, and searc
      cp .env.example .env
      ```
 
-2. Set `JWT_SECRET` in `.env`.
+2. Set these required values in `.env`:
+
+  - `JWT_SECRET`
+  - `DATABASE_URL` (example: `postgresql://explorer:explorer@localhost:5432/file_explorer?sslmode=disable`)
+
+  Optional pool tuning:
+
+  - `DB_MAX_CONNS`
+  - `DB_MIN_CONNS`
 
 3. Run:
 
@@ -50,7 +58,7 @@ GET /health
 
 ## Default User
 
-On first start, the service seeds a default admin user in `USERS_FILE`.
+On first start, if there are no users in PostgreSQL, the service seeds a default admin user in the `users` table.
 
 - Username: `admin`
 - Password: `admin123`
@@ -193,8 +201,9 @@ docker compose up --build -d
 
 Data persists in:
 
-- `./data` (storage)
-- `./state` (users DB)
+- `./data` (file storage)
+- `./state` (thumbnails/trash state)
+- Docker volume `pgdata` (PostgreSQL data)
 
 Stop:
 

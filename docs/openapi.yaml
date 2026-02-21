@@ -16,12 +16,16 @@ servers:
 tags:
   - name: Health
   - name: Auth
+  - name: Users
   - name: Explorer
   - name: Files
   - name: Operations
+  - name: Trash
   - name: Search
   - name: Audit
   - name: Jobs
+  - name: Storage
+  - name: Shares
 
 paths:
   /health:
@@ -411,6 +415,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+        '204':
+          description: Tipo de archivo no soportado para thumbnail
         '415':
           $ref: '#/components/responses/UnsupportedTypeError'
 
@@ -432,7 +438,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FileInfoResponse'
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: '#/components/schemas/FileItem' }
+                required: [success, data]
         '400':
           $ref: '#/components/responses/BadRequestError'
         '401':
@@ -721,6 +731,361 @@ paths:
         '404':
           $ref: '#/components/responses/NotFoundError'
 
+  /api/v1/auth/change-password:
+    put:
+      tags: [Auth]
+      summary: Cambiar contraseña del usuario autenticado
+      description: "Rol requerido: viewer/editor/admin"
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Contraseña actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BooleanActionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/users:
+    get:
+      tags: [Users]
+      summary: Listar todos los usuarios
+      description: "Rol requerido: admin"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista de usuarios
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/v1/users/{id}:
+    get:
+      tags: [Users]
+      summary: Obtener usuario por ID
+      description: "Rol requerido: admin"
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Datos del usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags: [Users]
+      summary: Actualizar rol de usuario
+      description: "Rol requerido: admin"
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Usuario actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags: [Users]
+      summary: Eliminar usuario
+      description: "Rol requerido: admin. No permite auto-eliminación."
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Usuario eliminado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeletedActionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/trash/{id}:
+    delete:
+      tags: [Trash]
+      summary: Eliminación permanente de un elemento de la papelera
+      description: "Rol requerido: editor/admin. Elimina permanentemente un elemento de la papelera por su ID."
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Elemento eliminado permanentemente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeletedActionResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/trash:
+    get:
+      tags: [Trash]
+      summary: Listar elementos en la papelera
+      description: "Rol requerido: editor/admin. Lista todos los elementos en la papelera."
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: include_restored
+          schema: { type: boolean, default: false }
+          description: Incluir elementos ya restaurados
+      responses:
+        '200':
+          description: Lista de elementos en la papelera
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrashListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+    delete:
+      tags: [Trash]
+      summary: Vaciar toda la papelera
+      description: "Rol requerido: editor/admin. Elimina permanentemente todos los elementos de la papelera."
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Papelera vaciada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyTrashResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/v1/storage/stats:
+    get:
+      tags: [Storage]
+      summary: Estadísticas de almacenamiento
+      description: "Rol requerido: viewer/editor/admin"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Estadísticas de uso de almacenamiento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageStatsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/jobs/{job_id}/stream:
+    get:
+      tags: [Jobs]
+      summary: Stream de progreso de job (SSE)
+      description: |
+        Rol requerido: editor/admin.
+        Endpoint Server-Sent Events (SSE) que emite actualizaciones de progreso en tiempo real para un job.
+        Cada evento contiene un JSON con job_id, status, progress, processed_items, total_items, success_items y failed_items.
+        El stream se cierra automáticamente cuando el job finaliza.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Stream de eventos SSE
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  Cada línea tiene formato `data: {json}\n\n` donde json es un objeto JobUpdate.
+                example: |
+                  data: {"job_id":"abc-123","status":"running","progress":50,"processed_items":5,"total_items":10,"success_items":5,"failed_items":0}
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/shares:
+    post:
+      tags: [Shares]
+      summary: Crear enlace de compartición
+      description: "Rol requerido: editor/admin. Genera un enlace público temporal para compartir un archivo o directorio."
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateShareRequest'
+      responses:
+        '201':
+          description: Enlace de compartición creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareRecordResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    get:
+      tags: [Shares]
+      summary: Listar enlaces de compartición del usuario
+      description: "Rol requerido: viewer/editor/admin. Devuelve los enlaces activos (no expirados) creados por el usuario autenticado."
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista de shares activos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/shares/{id}:
+    delete:
+      tags: [Shares]
+      summary: Revocar enlace de compartición
+      description: "Rol requerido: editor/admin. Elimina un enlace de compartición creado por el usuario."
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Enlace revocado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevokedActionResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/public/shares/{token}:
+    get:
+      tags: [Shares]
+      summary: Descargar recurso compartido (público)
+      description: |
+        No requiere autenticación. Descarga el archivo o directorio (como ZIP) asociado al token de compartición.
+        Devuelve 410 Gone si el enlace ha expirado.
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Archivo o ZIP descargado
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '410':
+          description: Enlace expirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
 components:
   securitySchemes:
     BearerAuth:
@@ -888,12 +1253,14 @@ components:
 
     BooleanActionResponse:
       type: object
+      description: Respuesta genérica con un campo booleano de acción
       properties:
         success: { type: boolean, enum: [true] }
         data:
           type: object
           properties:
             logged_out: { type: boolean }
+            changed: { type: boolean }
       required: [success, data]
 
     LoginRequest:
@@ -930,6 +1297,7 @@ components:
         preview_url: { type: string }
         thumbnail_url: { type: string }
         is_image: { type: boolean }
+        is_video: { type: boolean }
         modified_at: { type: string, format: date-time }
         created_at: { type: string, format: date-time }
         match_context: { type: string }
@@ -1318,6 +1686,161 @@ components:
         data: { $ref: '#/components/schemas/JobItemsData' }
         meta: { $ref: '#/components/schemas/Meta' }
       required: [success, data, meta]
+
+    ChangePasswordRequest:
+      type: object
+      properties:
+        current_password: { type: string }
+        new_password: { type: string }
+      required: [current_password, new_password]
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        role: { type: string, enum: [viewer, editor, admin] }
+      required: [role]
+
+    UserListData:
+      type: object
+      properties:
+        users:
+          type: array
+          items: { $ref: '#/components/schemas/AuthUser' }
+      required: [users]
+
+    UserListResponse:
+      type: object
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: '#/components/schemas/UserListData' }
+      required: [success, data]
+
+    DeletedActionResponse:
+      type: object
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          properties:
+            deleted: { type: boolean }
+      required: [success, data]
+
+    EmptyTrashData:
+      type: object
+      properties:
+        deleted_count: { type: integer }
+      required: [deleted_count]
+
+    EmptyTrashResponse:
+      type: object
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: '#/components/schemas/EmptyTrashData' }
+      required: [success, data]
+
+    TrashRecord:
+      type: object
+      properties:
+        id: { type: string }
+        original_path: { type: string }
+        trash_name: { type: string }
+        deleted_at: { type: string, format: date-time }
+        deleted_by: { $ref: '#/components/schemas/AuditActor' }
+        restored_at: { type: string, format: date-time }
+        restored_by: { $ref: '#/components/schemas/AuditActor' }
+      required: [id, original_path, trash_name, deleted_at, deleted_by]
+
+    TrashListResponse:
+      type: object
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/TrashRecord' }
+          required: [items]
+      required: [success, data]
+
+    StorageStats:
+      type: object
+      properties:
+        total_size: { type: integer, format: int64 }
+        total_size_human: { type: string }
+        file_count: { type: integer }
+        directory_count: { type: integer }
+      required: [total_size, total_size_human, file_count, directory_count]
+
+    StorageStatsResponse:
+      type: object
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: '#/components/schemas/StorageStats' }
+      required: [success, data]
+
+    JobUpdate:
+      type: object
+      description: Evento SSE de progreso de job
+      properties:
+        job_id: { type: string }
+        status: { type: string, enum: [queued, running, completed, partial, failed] }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+        processed_items: { type: integer }
+        total_items: { type: integer }
+        success_items: { type: integer }
+        failed_items: { type: integer }
+      required: [job_id, status, progress, processed_items, total_items, success_items, failed_items]
+
+    CreateShareRequest:
+      type: object
+      properties:
+        path: { type: string }
+        expires_in: { type: string, description: "Duración en formato Go (ej: 24h, 72h, 168h). Por defecto 24h.", example: "72h" }
+      required: [path]
+
+    ShareRecord:
+      type: object
+      properties:
+        id: { type: string }
+        token: { type: string }
+        path: { type: string }
+        created_by: { type: string }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+      required: [id, token, path, created_by, created_at, expires_at]
+
+    ShareRecordResponse:
+      type: object
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: '#/components/schemas/ShareRecord' }
+      required: [success, data]
+
+    ShareListData:
+      type: object
+      properties:
+        shares:
+          type: array
+          items: { $ref: '#/components/schemas/ShareRecord' }
+      required: [shares]
+
+    ShareListResponse:
+      type: object
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: '#/components/schemas/ShareListData' }
+      required: [success, data]
+
+    RevokedActionResponse:
+      type: object
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          properties:
+            revoked: { type: boolean }
+      required: [success, data]
 
 security:
   - BearerAuth: []
