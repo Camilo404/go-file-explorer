@@ -62,6 +62,10 @@ func (s *SearchService) Search(ctx context.Context, query string, startPath stri
 		startPath = "/"
 	}
 
+	if isInternalStoragePath(startPath) {
+		return nil, model.Meta{}, apierror.New("NOT_FOUND", "start path not found", startPath, http.StatusNotFound)
+	}
+
 	resolvedStart, err := s.store.Resolve(startPath)
 	if err != nil {
 		return nil, model.Meta{}, err
@@ -97,6 +101,13 @@ func (s *SearchService) Search(ctx context.Context, query string, startPath stri
 		}
 
 		if entry.Type()&os.ModeSymlink != 0 {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		if isInternalStorageEntry(entry.Name()) {
 			if entry.IsDir() {
 				return filepath.SkipDir
 			}

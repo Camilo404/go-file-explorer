@@ -38,6 +38,10 @@ func (s *DirectoryService) List(_ context.Context, requestedPath string, page in
 		limit = 200
 	}
 
+	if isInternalStoragePath(requestedPath) {
+		return model.DirectoryListData{}, model.Meta{}, apierror.New("NOT_FOUND", "directory not found", requestedPath, http.StatusNotFound)
+	}
+
 	resolved, err := s.store.Resolve(requestedPath)
 	if err != nil {
 		return model.DirectoryListData{}, model.Meta{}, err
@@ -53,6 +57,10 @@ func (s *DirectoryService) List(_ context.Context, requestedPath string, page in
 
 	items := make([]model.FileItem, 0, len(entries))
 	for _, entry := range entries {
+		if isInternalStorageEntry(entry.Name()) {
+			continue
+		}
+
 		info, infoErr := entry.Info()
 		if infoErr != nil {
 			continue
@@ -192,6 +200,10 @@ func (s *DirectoryService) Tree(_ context.Context, requestedPath string, depth i
 		limit = 500
 	}
 
+	if isInternalStoragePath(requestedPath) {
+		return model.TreeData{}, model.Meta{}, apierror.New("NOT_FOUND", "directory not found", requestedPath, http.StatusNotFound)
+	}
+
 	resolved, err := s.store.Resolve(requestedPath)
 	if err != nil {
 		return model.TreeData{}, model.Meta{}, err
@@ -215,6 +227,10 @@ func (s *DirectoryService) Tree(_ context.Context, requestedPath string, depth i
 
 	candidates := make([]os.DirEntry, 0, len(entries))
 	for _, entry := range entries {
+		if isInternalStorageEntry(entry.Name()) {
+			continue
+		}
+
 		if entry.Type()&os.ModeSymlink != 0 {
 			continue
 		}
@@ -283,6 +299,10 @@ func (s *DirectoryService) buildTreeNode(absPath string, apiPath string, entry o
 
 	visibleChildren := make([]os.DirEntry, 0, len(children))
 	for _, child := range children {
+		if isInternalStorageEntry(child.Name()) {
+			continue
+		}
+
 		if child.Type()&os.ModeSymlink != 0 {
 			continue
 		}
@@ -428,4 +448,23 @@ func normalizeAPIPath(path string) string {
 	}
 
 	return cleaned
+}
+
+func isInternalStorageEntry(name string) bool {
+	trimmed := strings.TrimSpace(name)
+	switch trimmed {
+	case ".trash", ".thumbnails":
+		return true
+	default:
+		return false
+	}
+}
+
+func isInternalStoragePath(raw string) bool {
+	normalized := normalizeAPIPath(raw)
+	if normalized == "/.trash" || normalized == "/.thumbnails" {
+		return true
+	}
+
+	return strings.HasPrefix(normalized, "/.trash/") || strings.HasPrefix(normalized, "/.thumbnails/")
 }
