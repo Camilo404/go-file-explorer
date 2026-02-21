@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -20,17 +21,17 @@ type Config struct {
 	TransferIdleTimeout     time.Duration
 	StorageRoot             string
 	MaxUploadSize           int64
-	JWTSecret          string
-	JWTAccessTTL       time.Duration
-	JWTRefreshTTL      time.Duration
-	CORSOrigins        []string
-	RateLimitRPM       int
-	AuthRateLimitRPM   int
-	SearchMaxDepth   int
-	SearchTimeout    time.Duration
-	AllowedMIMETypes []string
-	TrashRoot        string
-	ThumbnailRoot    string
+	JWTSecret               string
+	JWTAccessTTL            time.Duration
+	JWTRefreshTTL           time.Duration
+	CORSOrigins             []string
+	RateLimitRPM            int
+	AuthRateLimitRPM        int
+	SearchMaxDepth          int
+	SearchTimeout           time.Duration
+	AllowedMIMETypes        []string
+	TrashRoot               string
+	ThumbnailRoot           string
 
 	// Chunked uploads
 	ChunkTempDir string
@@ -54,19 +55,19 @@ func Load() (*Config, error) {
 		RequestTimeout:          getDuration("REQUEST_TIMEOUT", 30*time.Second),
 		TransferTimeout:         getDuration("TRANSFER_TIMEOUT", 10*time.Minute),
 		TransferIdleTimeout:     getDuration("TRANSFER_IDLE_TIMEOUT", 60*time.Second),
-		StorageRoot:        getEnv("STORAGE_ROOT", "./data"),
-		MaxUploadSize:      getInt64("MAX_UPLOAD_SIZE", 1073741824),
-		JWTSecret:          strings.TrimSpace(os.Getenv("JWT_SECRET")),
-		JWTAccessTTL:       getDuration("JWT_ACCESS_TTL", 15*time.Minute),
-		JWTRefreshTTL:      getDuration("JWT_REFRESH_TTL", 168*time.Hour),
-		CORSOrigins:        splitCSV(getEnv("CORS_ORIGINS", "*")),
-		RateLimitRPM:       getInt("RATE_LIMIT_RPM", 100),
-		AuthRateLimitRPM:   getInt("AUTH_RATE_LIMIT_RPM", 10),
-		SearchMaxDepth:   getInt("SEARCH_MAX_DEPTH", 10),
-		SearchTimeout:    getDuration("SEARCH_TIMEOUT", 30*time.Second),
-		AllowedMIMETypes: splitCSV(strings.TrimSpace(os.Getenv("ALLOWED_MIME_TYPES"))),
-		TrashRoot:        getEnv("TRASH_ROOT", "./data/.trash"),
-		ThumbnailRoot:    getEnv("THUMBNAIL_ROOT", "./data/.thumbnails"),
+		StorageRoot:             getEnv("STORAGE_ROOT", "./data"),
+		MaxUploadSize:           getInt64("MAX_UPLOAD_SIZE", 1073741824),
+		JWTSecret:               strings.TrimSpace(os.Getenv("JWT_SECRET")),
+		JWTAccessTTL:            getDuration("JWT_ACCESS_TTL", 15*time.Minute),
+		JWTRefreshTTL:           getDuration("JWT_REFRESH_TTL", 168*time.Hour),
+		CORSOrigins:             splitCSV(getEnv("CORS_ORIGINS", "*")),
+		RateLimitRPM:            getInt("RATE_LIMIT_RPM", 100),
+		AuthRateLimitRPM:        getInt("AUTH_RATE_LIMIT_RPM", 10),
+		SearchMaxDepth:          getInt("SEARCH_MAX_DEPTH", 10),
+		SearchTimeout:           getDuration("SEARCH_TIMEOUT", 30*time.Second),
+		AllowedMIMETypes:        splitCSV(strings.TrimSpace(os.Getenv("ALLOWED_MIME_TYPES"))),
+		TrashRoot:               getEnv("TRASH_ROOT", "./data/.trash"),
+		ThumbnailRoot:           getEnv("THUMBNAIL_ROOT", "./data/.thumbnails"),
 
 		ChunkTempDir: getEnv("CHUNK_TEMP_DIR", "./data/.chunks"),
 		ChunkMaxSize: getInt64("CHUNK_MAX_SIZE", 50*1024*1024),
@@ -74,8 +75,8 @@ func Load() (*Config, error) {
 
 		DatabaseURL: strings.TrimSpace(os.Getenv("DATABASE_URL")),
 
-		DBMaxConns:  int32(getInt("DB_MAX_CONNS", 10)),
-		DBMinConns:  int32(getInt("DB_MIN_CONNS", 2)),
+		DBMaxConns: int32(getInt("DB_MAX_CONNS", 10)),
+		DBMinConns: int32(getInt("DB_MIN_CONNS", 2)),
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -88,6 +89,15 @@ func Load() (*Config, error) {
 func (c *Config) Validate() error {
 	if strings.TrimSpace(c.JWTSecret) == "" {
 		return fmt.Errorf("JWT_SECRET is required")
+	}
+
+	if len(c.JWTSecret) < 32 {
+		return fmt.Errorf("JWT_SECRET must be at least 32 characters long for security; generate one with: openssl rand -base64 48")
+	}
+
+	// Warn about known-insecure default values.
+	if c.JWTSecret == "change-me-in-production" {
+		return fmt.Errorf("JWT_SECRET is set to the insecure default; please set a strong random value")
 	}
 
 	if c.ServerPort == "" {
@@ -128,6 +138,14 @@ func (c *Config) Validate() error {
 
 	if strings.TrimSpace(c.DatabaseURL) == "" {
 		return fmt.Errorf("DATABASE_URL is required")
+	}
+
+	// Security warnings (non-fatal but logged).
+	for _, origin := range c.CORSOrigins {
+		if origin == "*" {
+			slog.Warn("CORS_ORIGINS is set to wildcard '*' — this is insecure for production; set specific origins instead")
+			break
+		}
 	}
 
 	return nil

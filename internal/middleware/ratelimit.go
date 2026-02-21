@@ -106,20 +106,36 @@ func (m *RateLimitMiddleware) gcLocked() {
 	}
 }
 
+// extractClientIP determines the real client IP address.
+// Priority order (most trusted first):
+//  1. Cf-Connecting-IP  — set by Cloudflare (trusted proxy, cannot be spoofed by end-user)
+//  2. X-Real-IP         — set by trusted reverse proxies (nginx, Caddy)
+//  3. X-Forwarded-For   — first entry (may be spoofed if not behind a trusted proxy)
+//  4. r.RemoteAddr      — direct TCP peer (fallback)
+//
+// When behind cloudflared, Cf-Connecting-IP is the authoritative source.
 func extractClientIP(r *http.Request) string {
-	forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-For"))
-	if forwarded != "" {
-		parts := strings.Split(forwarded, ",")
-		if len(parts) > 0 {
-			return strings.TrimSpace(parts[0])
-		}
+	// 1. Cloudflare Tunnel / Cloudflare proxy
+	if cfIP := strings.TrimSpace(r.Header.Get("Cf-Connecting-IP")); cfIP != "" {
+		return cfIP
 	}
 
-	realIP := strings.TrimSpace(r.Header.Get("X-Real-IP"))
-	if realIP != "" {
+	// 2. Trusted reverse proxy header
+	if realIP := strings.TrimSpace(r.Header.Get("X-Real-IP")); realIP != "" {
 		return realIP
 	}
 
+	// 3. X-Forwarded-For (take the first/leftmost entry)
+	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); forwarded != "" {
+		parts := strings.Split(forwarded, ",")
+		if len(parts) > 0 {
+			if ip := strings.TrimSpace(parts[0]); ip != "" {
+				return ip
+			}
+		}
+	}
+
+	// 4. Direct connection
 	host, _, err := net.SplitHostPort(strings.TrimSpace(r.RemoteAddr))
 	if err == nil && host != "" {
 		return host

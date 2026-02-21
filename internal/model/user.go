@@ -3,12 +3,15 @@ package model
 import "time"
 
 type User struct {
-	ID           string    `json:"id"`
-	Username     string    `json:"username"`
-	PasswordHash string    `json:"password_hash"`
-	Role         string    `json:"role"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID                  string     `json:"id"`
+	Username            string     `json:"username"`
+	PasswordHash        string     `json:"password_hash"`
+	Role                string     `json:"role"`
+	ForcePasswordChange bool       `json:"force_password_change"`
+	FailedLoginAttempts int        `json:"failed_login_attempts"`
+	LockedUntil         *time.Time `json:"locked_until,omitempty"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
 type AuthClaims struct {
@@ -20,9 +23,10 @@ type AuthClaims struct {
 }
 
 type AuthUser struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Role     string `json:"role"`
+	ID                  string `json:"id"`
+	Username            string `json:"username"`
+	Role                string `json:"role"`
+	ForcePasswordChange bool   `json:"force_password_change,omitempty"`
 }
 
 type AuthUserList struct {
@@ -30,9 +34,10 @@ type AuthUserList struct {
 }
 
 type TokenPair struct {
-	AccessToken  string   `json:"access_token"`
-	RefreshToken string   `json:"refresh_token"`
-	TokenType    string   `json:"token_type"`
-	ExpiresIn    int64    `json:"expires_in"`
-	User         AuthUser `json:"user"`
+	AccessToken         string   `json:"access_token"`
+	RefreshToken        string   `json:"refresh_token"`
+	TokenType           string   `json:"token_type"`
+	ExpiresIn           int64    `json:"expires_in"`
+	User                AuthUser `json:"user"`
+	ForcePasswordChange bool     `json:"force_password_change,omitempty"`
 }
