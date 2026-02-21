@@ -43,6 +43,10 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		if nextErr != nil {
+			if isPayloadTooLarge(nextErr) {
+				writeError(w, apierror.New("PAYLOAD_TOO_LARGE", "request body exceeds MAX_UPLOAD_SIZE", "MAX_UPLOAD_SIZE", http.StatusRequestEntityTooLarge))
+				return
+			}
 			writeError(w, apierror.New("BAD_REQUEST", "invalid multipart stream", nextErr.Error(), http.StatusBadRequest))
 			return
 		}
@@ -74,6 +78,11 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 		uploaded, uploadErr := h.service.Upload(r.Context(), destination, part.FileName(), conflictPolicy, part)
 		if uploadErr != nil {
+			if isPayloadTooLarge(uploadErr) {
+				writeError(w, apierror.New("PAYLOAD_TOO_LARGE", "request body exceeds MAX_UPLOAD_SIZE", "MAX_UPLOAD_SIZE", http.StatusRequestEntityTooLarge))
+				_ = part.Close()
+				return
+			}
 			result.Failed = append(result.Failed, model.UploadFailure{Name: part.FileName(), Reason: uploadErr.Error()})
 			_ = part.Close()
 			continue
@@ -84,6 +93,15 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeSuccess(w, http.StatusOK, result, nil)
+}
+
+func isPayloadTooLarge(err error) bool {
+	var maxBytesErr *http.MaxBytesError
+	if errors.As(err, &maxBytesErr) {
+		return true
+	}
+
+	return strings.Contains(strings.ToLower(err.Error()), "request body too large")
 }
 
 func (h *FileHandler) Download(w http.ResponseWriter, r *http.Request) {
