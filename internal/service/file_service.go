@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -165,12 +166,6 @@ func (s *FileService) GetThumbnail(path string, size int) (*os.File, os.FileInfo
 		return nil, nil, apierror.New("BAD_REQUEST", "path points to a directory", path, http.StatusBadRequest)
 	}
 
-	file, err := os.Open(resolved)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer file.Close()
-
 	if err := os.MkdirAll(s.thumbnailRoot, 0o755); err != nil {
 		return nil, nil, err
 	}
@@ -185,9 +180,38 @@ func (s *FileService) GetThumbnail(path string, size int) (*os.File, os.FileInfo
 		}
 	}
 
-	if _, err := file.Seek(0, 0); err != nil {
+	// Detect whether the file is a video or an image.
+	file, err := os.Open(resolved)
+	if err != nil {
 		return nil, nil, err
 	}
+
+	mimeType, err := util.DetectMIMEFromFile(file)
+	_ = file.Close()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ext := strings.ToLower(filepath.Ext(resolved))
+	isVideo := util.IsVideoMIME(mimeType)
+	if !isVideo && strings.EqualFold(mimeType, "application/octet-stream") {
+		isVideo = util.IsVideoExtension(ext)
+	}
+
+	if isVideo {
+		return s.generateVideoThumbnail(resolved, thumbPath, size, info)
+	}
+
+	return s.generateImageThumbnail(resolved, thumbPath, size, info)
+}
+
+// generateImageThumbnail decodes an image, scales it, and writes a JPEG thumbnail.
+func (s *FileService) generateImageThumbnail(resolved, thumbPath string, size int, info os.FileInfo) (*os.File, os.FileInfo, error) {
+	file, err := os.Open(resolved)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer file.Close()
 
 	src, _, err := image.Decode(file)
 	if err != nil {
@@ -198,8 +222,91 @@ func (s *FileService) GetThumbnail(path string, size int) (*os.File, os.FileInfo
 	width := bounds.Dx()
 	height := bounds.Dy()
 	if width <= 0 || height <= 0 {
-		return nil, nil, apierror.New("UNSUPPORTED_TYPE", "invalid image dimensions", path, http.StatusUnsupportedMediaType)
+		return nil, nil, apierror.New("UNSUPPORTED_TYPE", "invalid image dimensions", resolved, http.StatusUnsupportedMediaType)
 	}
+
+	return s.scaleAndSaveThumbnail(src, bounds, thumbPath, size, info)
+}
+
+// generateVideoThumbnail extracts a frame from a video using ffmpeg and saves
+// it as a scaled JPEG thumbnail. If ffmpeg is not installed the endpoint returns
+// UNSUPPORTED_TYPE so the client can fall back gracefully.
+func (s *FileService) generateVideoThumbnail(resolved, thumbPath string, size int, info os.FileInfo) (*os.File, os.FileInfo, error) {
+	ffmpegPath, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		return nil, nil, apierror.New("UNSUPPORTED_TYPE", "ffmpeg not available for video thumbnails", "", http.StatusUnsupportedMediaType)
+	}
+
+	// Extract a single frame at ~1 s into the video (or 0 s if it's shorter).
+	// Output raw JPEG to a temp file so we can decode → scale → save like images.
+	tmpFile, err := os.CreateTemp(s.thumbnailRoot, "vtmp-*.jpg")
+	if err != nil {
+		return nil, nil, err
+	}
+	tmpPath := tmpFile.Name()
+	_ = tmpFile.Close()
+	defer os.Remove(tmpPath)
+
+	sizeStr := strconv.Itoa(size)
+
+	//nolint:gosec // resolved path is already validated by storage layer
+	cmd := exec.Command(
+		ffmpegPath,
+		"-hide_banner", "-loglevel", "error",
+		"-ss", "1",          // seek to 1 s (fast input seeking)
+		"-i", resolved,      // input file
+		"-frames:v", "1",    // extract one frame
+		"-vf", "scale='min("+sizeStr+"\\,iw)':'min("+sizeStr+"\\,ih)':force_original_aspect_ratio=decrease",
+		"-q:v", "2",         // JPEG quality (2 = high)
+		"-y",                // overwrite
+		tmpPath,
+	)
+	cmd.Stderr = nil
+	cmd.Stdout = nil
+
+	if err := cmd.Run(); err != nil {
+		return nil, nil, apierror.New("UNSUPPORTED_TYPE", "failed to extract video frame", err.Error(), http.StatusUnsupportedMediaType)
+	}
+
+	// ffmpeg already scaled the frame; just copy it to the final thumbnail path.
+	src, err := os.Open(tmpPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer src.Close()
+
+	dst, err := os.OpenFile(thumbPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if _, err := io.Copy(dst, src); err != nil {
+		_ = dst.Close()
+		return nil, nil, err
+	}
+	_ = dst.Close()
+
+	_ = os.Chtimes(thumbPath, time.Now().UTC(), info.ModTime())
+
+	thumbFile, err := os.Open(thumbPath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	thumbInfo, err := os.Stat(thumbPath)
+	if err != nil {
+		_ = thumbFile.Close()
+		return nil, nil, err
+	}
+
+	return thumbFile, thumbInfo, nil
+}
+
+// scaleAndSaveThumbnail scales a decoded image to the given size and saves it
+// as a JPEG file at thumbPath. It returns the opened thumbnail file and its info.
+func (s *FileService) scaleAndSaveThumbnail(src image.Image, bounds image.Rectangle, thumbPath string, size int, info os.FileInfo) (*os.File, os.FileInfo, error) {
+	width := bounds.Dx()
+	height := bounds.Dy()
 
 	maxDim := width
 	if height > maxDim {
@@ -353,6 +460,7 @@ func (s *FileService) GetInfo(path string) (model.FileItem, error) {
 			} else if isVideo {
 				item.IsVideo = true
 				item.PreviewURL = "/api/v1/files/preview?path=" + url.QueryEscape(item.Path)
+				item.ThumbnailURL = "/api/v1/files/thumbnail?path=" + url.QueryEscape(item.Path) + "&size=256"
 			}
 		}
 	}
