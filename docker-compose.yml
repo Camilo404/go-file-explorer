@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -11,7 +9,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - /mnt/datos-externos/file-explorer-data/postgres:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U explorer -d file_explorer"]
@@ -25,18 +23,20 @@ services:
       dockerfile: Dockerfile
     container_name: go-file-explorer-api
     env_file:
-      - .env
+      - path: .env.example
+        required: true
+      - path: .env
+        required: false
     environment:
+      STORAGE_ROOT: /data
       DATABASE_URL: postgres://explorer:explorer@postgres:5432/file_explorer?sslmode=disable
     ports:
       - "8080:8080"
     volumes:
-      - ./data:/data
-      - ./state:/app/state
+      - /mnt/datos-externos/file-explorer-data/data:/data
+      - /mnt/datos-externos/file-explorer-data/state:/app/state
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
 
-volumes:
-  pgdata:

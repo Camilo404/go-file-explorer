@@ -20,6 +20,10 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 COPY --from=builder /bin/go-file-explorer /usr/local/bin/go-file-explorer
+COPY .env.example /app/.env.example
+COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 RUN mkdir -p /data /app/state
 
@@ -28,4 +32,4 @@ ENV SERVER_PORT=8080
 
 EXPOSE 8080
 
-ENTRYPOINT ["/usr/local/bin/go-file-explorer"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
