@@ -50,7 +50,7 @@ func SanitizeFilename(name string, allowHidden bool) (string, error) {
 	builder.Grow(len(trimmed))
 
 	for _, char := range trimmed {
-		if unicode.IsControl(char) {
+		if unicode.IsControl(char) || isInvisibleUnicode(char) {
 			continue
 		}
 
@@ -65,9 +65,12 @@ func SanitizeFilename(name string, allowHidden bool) (string, error) {
 		return "", apierror.New("INVALID_FILENAME", "filename is invalid after sanitization", trimmed, 400)
 	}
 
-	if len(cleaned) > 255 {
-		cleaned = cleaned[:255]
+	// Truncate by runes (not bytes) to avoid splitting multi-byte characters.
+	runes := []rune(cleaned)
+	if len(runes) > 255 {
+		runes = runes[:255]
 	}
+	cleaned = string(runes)
 
 	if strings.HasPrefix(cleaned, ".") && !allowHidden {
 		return "", apierror.New("INVALID_FILENAME", "hidden filenames are not allowed", cleaned, 400)
@@ -91,4 +94,34 @@ func SanitizeFilename(name string, allowHidden bool) (string, error) {
 	}
 
 	return cleaned, nil
+}
+
+// isInvisibleUnicode returns true for zero-width, formatting, and other
+// invisible Unicode characters that should be stripped from filenames.
+func isInvisibleUnicode(r rune) bool {
+	switch r {
+	case
+		'\u200B', // Zero-Width Space
+		'\u200C', // Zero-Width Non-Joiner
+		'\u200D', // Zero-Width Joiner
+		'\u200E', // Left-to-Right Mark
+		'\u200F', // Right-to-Left Mark
+		'\u2060', // Word Joiner
+		'\u2061', // Function Application
+		'\u2062', // Invisible Times
+		'\u2063', // Invisible Separator
+		'\u2064', // Invisible Plus
+		'\uFEFF', // Zero-Width No-Break Space / BOM
+		'\uFFF9', // Interlinear Annotation Anchor
+		'\uFFFA', // Interlinear Annotation Separator
+		'\uFFFB': // Interlinear Annotation Terminator
+		return true
+	}
+
+	// Unicode categories for format and non-characters
+	if unicode.Is(unicode.Cf, r) { // Format characters (Cf category)
+		return true
+	}
+
+	return false
 }
