@@ -32,6 +32,11 @@ type Config struct {
 	TrashRoot        string
 	ThumbnailRoot    string
 
+	// Chunked uploads
+	ChunkTempDir string
+	ChunkMaxSize int64
+	ChunkExpiry  time.Duration
+
 	// Database (required)
 	DatabaseURL string
 	DBMaxConns  int32
@@ -60,8 +65,12 @@ func Load() (*Config, error) {
 		SearchMaxDepth:   getInt("SEARCH_MAX_DEPTH", 10),
 		SearchTimeout:    getDuration("SEARCH_TIMEOUT", 30*time.Second),
 		AllowedMIMETypes: splitCSV(strings.TrimSpace(os.Getenv("ALLOWED_MIME_TYPES"))),
-		TrashRoot:        getEnv("TRASH_ROOT", "./state/trash"),
-		ThumbnailRoot:    getEnv("THUMBNAIL_ROOT", "./state/thumbnails"),
+		TrashRoot:        getEnv("TRASH_ROOT", "./data/.trash"),
+		ThumbnailRoot:    getEnv("THUMBNAIL_ROOT", "./data/.thumbnails"),
+
+		ChunkTempDir: getEnv("CHUNK_TEMP_DIR", "./data/.chunks"),
+		ChunkMaxSize: getInt64("CHUNK_MAX_SIZE", 50*1024*1024),
+		ChunkExpiry:  getDuration("CHUNK_EXPIRY", 24*time.Hour),
 
 		DatabaseURL: strings.TrimSpace(os.Getenv("DATABASE_URL")),
 
@@ -103,6 +112,18 @@ func (c *Config) Validate() error {
 
 	if strings.TrimSpace(c.ThumbnailRoot) == "" {
 		return fmt.Errorf("THUMBNAIL_ROOT cannot be empty")
+	}
+
+	if strings.TrimSpace(c.ChunkTempDir) == "" {
+		return fmt.Errorf("CHUNK_TEMP_DIR cannot be empty")
+	}
+
+	if c.ChunkMaxSize <= 0 {
+		return fmt.Errorf("CHUNK_MAX_SIZE must be positive")
+	}
+
+	if c.ChunkExpiry <= 0 {
+		return fmt.Errorf("CHUNK_EXPIRY must be positive")
 	}
 
 	if strings.TrimSpace(c.DatabaseURL) == "" {

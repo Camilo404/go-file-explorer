@@ -49,7 +49,7 @@ func NewFileService(store *storage.Storage, allowedMIMETypes []string, thumbnail
 	}
 
 	if strings.TrimSpace(thumbnailRoot) == "" {
-		thumbnailRoot = "./state/thumbnails"
+		thumbnailRoot = "./data/.thumbnails"
 	}
 
 	return &FileService{store: store, allowedMIMETypes: allowed, thumbnailRoot: thumbnailRoot}

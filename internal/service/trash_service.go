@@ -33,7 +33,7 @@ if err := os.MkdirAll(trashRoot, 0o755); err != nil {
 return nil, fmt.Errorf("prepare trash directory: %w", err)
 }
 
-	return &TrashService{store: store, trashRoot: trashRoot, thumbnailRoot: "./state/thumbnails", trashRepo: trashRepo}, nil
+	return &TrashService{store: store, trashRoot: trashRoot, thumbnailRoot: "./data/.thumbnails", trashRepo: trashRepo}, nil
 }
 
 func (s *TrashService) SetThumbnailRoot(thumbnailRoot string) {

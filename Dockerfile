@@ -26,9 +26,12 @@ COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-RUN mkdir -p /data /app/state
+RUN mkdir -p /data/.trash /data/.thumbnails /data/.chunks
 
 ENV STORAGE_ROOT=/data
+ENV TRASH_ROOT=/data/.trash
+ENV THUMBNAIL_ROOT=/data/.thumbnails
+ENV CHUNK_TEMP_DIR=/data/.chunks
 ENV SERVER_PORT=8080
 
 EXPOSE 8080

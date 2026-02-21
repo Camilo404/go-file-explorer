@@ -88,7 +88,17 @@ func main() {
 	storageHandler := handler.NewStorageHandler(store, []string{cfg.TrashRoot, cfg.ThumbnailRoot})
 	shareService := service.NewShareService(shareRepo)
 	shareHandler := handler.NewShareHandler(shareService, fileService)
-	appRouter := router.New(cfg, authMiddleware, authHandler, directoryHandler, fileHandler, operationsHandler, searchHandler, auditHandler, jobsHandler, docsHandler, userHandler, storageHandler, shareHandler)
+	chunkedUploadService, err := service.NewChunkedUploadService(store, cfg.ChunkTempDir, cfg.AllowedMIMETypes)
+	if err != nil {
+		slog.Error("failed to initialize chunked upload service", "error", err)
+		os.Exit(1)
+	}
+	chunkedUploadHandler := handler.NewChunkedUploadHandler(chunkedUploadService, cfg.ChunkMaxSize)
+	appRouter := router.New(cfg, authMiddleware, authHandler, directoryHandler, fileHandler, operationsHandler, searchHandler, auditHandler, jobsHandler, docsHandler, userHandler, storageHandler, shareHandler, chunkedUploadHandler)
+
+	// ── Chunked upload cleanup goroutine ─────────────────────────
+	cleanupCtx, cleanupCancel := context.WithCancel(context.Background())
+	go chunkedUploadService.StartCleanupTicker(cleanupCtx, cfg.ChunkExpiry)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.ServerPort,
@@ -112,6 +122,8 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	cleanupCancel() // stop the chunk cleanup goroutine
 
 	if err := server.Shutdown(ctx); err != nil {
 		slog.Error("graceful shutdown failed", "error", err)

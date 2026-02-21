@@ -24,6 +24,7 @@ func New(
 	userHandler *handler.UserHandler,
 	storageHandler *handler.StorageHandler,
 	shareHandler *handler.ShareHandler,
+	chunkedUploadHandler *handler.ChunkedUploadHandler,
 ) http.Handler {
 	r := chi.NewRouter()
 	rateLimitMiddleware := middleware.NewRateLimitMiddleware(cfg.RateLimitRPM, cfg.AuthRateLimitRPM)
@@ -55,6 +56,9 @@ func New(
 		api.With(streaming, authMiddleware.RequireAuth).Get("/files/thumbnail", fileHandler.Thumbnail)
 		api.With(streaming, authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Get("/jobs/{job_id}/stream", jobsHandler.Stream)
 		api.With(streaming).Get("/public/shares/{token}", shareHandler.PublicDownload)
+
+		// Chunked uploads — chunk write uses streaming; init/complete/abort are lightweight JSON.
+		api.With(streaming, authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Put("/uploads/{upload_id}/chunks/{chunk_index}", chunkedUploadHandler.UploadChunk)
 
 		// ── Standard routes ──────────────────────────────────────────
 		// Short-lived JSON endpoints keep the strict http.TimeoutHandler
@@ -104,6 +108,11 @@ func New(
 				shares.Get("/", shareHandler.List)
 				shares.With(authMiddleware.RequireRoles("editor", "admin")).Delete("/{id}", shareHandler.Revoke)
 			})
+
+			// Chunked uploads — JSON control endpoints.
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/uploads/init", chunkedUploadHandler.Init)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/uploads/{upload_id}/complete", chunkedUploadHandler.Complete)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Delete("/uploads/{upload_id}", chunkedUploadHandler.Abort)
 		})
 	})
 

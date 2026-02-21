@@ -190,3 +190,29 @@ type ShareRecord struct {
 type ShareListData struct {
 	Shares []ShareRecord `json:"shares"`
 }
+
+// ── Chunked uploads ──────────────────────────────────────────────
+
+type ChunkedUploadInitRequest struct {
+	FileName       string `json:"file_name"`
+	FileSize       int64  `json:"file_size"`
+	ChunkSize      int64  `json:"chunk_size"`
+	Destination    string `json:"destination"`
+	ConflictPolicy string `json:"conflict_policy,omitempty"`
+}
+
+type ChunkedUploadInitResponse struct {
+	UploadID    string `json:"upload_id"`
+	ChunkSize   int64  `json:"chunk_size"`
+	TotalChunks int    `json:"total_chunks"`
+}
+
+type ChunkedUploadChunkResponse struct {
+	UploadID       string `json:"upload_id"`
+	ChunkIndex     int    `json:"chunk_index"`
+	ChunksReceived int    `json:"chunks_received"`
+}
+
+type ChunkedUploadCompleteResponse struct {
+	File UploadItem `json:"file"`
+}
