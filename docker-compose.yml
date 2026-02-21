@@ -31,6 +31,7 @@ services:
       STORAGE_ROOT: /data
       TRASH_ROOT: /data/.trash
       THUMBNAIL_ROOT: /data/.thumbnails
+      CHUNK_TEMP_DIR: /data/.chunks
       DATABASE_URL: postgres://explorer:explorer@postgres:5432/file_explorer?sslmode=disable
     ports:
       - "8080:8080"
