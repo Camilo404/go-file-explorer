@@ -287,9 +287,34 @@ func (s *ChunkedUploadService) CompleteUpload(_ context.Context, uploadID string
 		return model.UploadItem{}, fmt.Errorf("create destination dir: %w", err)
 	}
 
-	// Atomic rename (same partition) — no extra I/O on HDD.
+	// Try atomic rename first (fast, same partition).
 	if err := os.Rename(sess.tempFilePath, resolvedTarget); err != nil {
-		return model.UploadItem{}, fmt.Errorf("move temp file to destination: %w", err)
+		slog.Warn("atomic rename failed, falling back to copy", "src", sess.tempFilePath, "dst", resolvedTarget, "error", err)
+
+		src, openErr := os.Open(sess.tempFilePath)
+		if openErr != nil {
+			return model.UploadItem{}, fmt.Errorf("open temp file for fallback copy: %w", openErr)
+		}
+
+		dst, createErr := os.Create(resolvedTarget)
+		if createErr != nil {
+			src.Close()
+			return model.UploadItem{}, fmt.Errorf("create destination file for fallback copy: %w", createErr)
+		}
+
+		_, copyErr := io.Copy(dst, src)
+		// Close files eagerly before possible removal
+		src.Close()
+		dst.Close()
+
+		if copyErr != nil {
+			os.Remove(resolvedTarget) // Cleanup partial file
+			return model.UploadItem{}, fmt.Errorf("copy temp file to destination: %w", copyErr)
+		}
+
+		if rmErr := os.Remove(sess.tempFilePath); rmErr != nil {
+			slog.Warn("failed to remove temp file after successful fallback copy", "path", sess.tempFilePath, "error", rmErr)
+		}
 	}
 
 	// Get final size from disk.

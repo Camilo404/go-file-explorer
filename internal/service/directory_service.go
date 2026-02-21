@@ -453,7 +453,7 @@ func normalizeAPIPath(path string) string {
 func isInternalStorageEntry(name string) bool {
 	trimmed := strings.TrimSpace(name)
 	switch trimmed {
-	case ".trash", ".thumbnails":
+	case ".trash", ".thumbnails", ".chunks":
 		return true
 	default:
 		return false
@@ -462,9 +462,9 @@ func isInternalStorageEntry(name string) bool {
 
 func isInternalStoragePath(raw string) bool {
 	normalized := normalizeAPIPath(raw)
-	if normalized == "/.trash" || normalized == "/.thumbnails" {
+	if normalized == "/.trash" || normalized == "/.thumbnails" || normalized == "/.chunks" {
 		return true
 	}
 
-	return strings.HasPrefix(normalized, "/.trash/") || strings.HasPrefix(normalized, "/.thumbnails/")
+	return strings.HasPrefix(normalized, "/.trash/") || strings.HasPrefix(normalized, "/.thumbnails/") || strings.HasPrefix(normalized, "/.chunks/")
 }

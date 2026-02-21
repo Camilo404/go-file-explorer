@@ -85,7 +85,7 @@ func main() {
 	searchService := service.NewSearchService(store, cfg.SearchMaxDepth, cfg.SearchTimeout)
 	searchHandler := handler.NewSearchHandler(searchService)
 	userHandler := handler.NewUserHandler(authService)
-	storageHandler := handler.NewStorageHandler(store, []string{cfg.TrashRoot, cfg.ThumbnailRoot})
+	storageHandler := handler.NewStorageHandler(store, []string{cfg.TrashRoot, cfg.ThumbnailRoot, cfg.ChunkTempDir})
 	shareService := service.NewShareService(shareRepo)
 	shareHandler := handler.NewShareHandler(shareService, fileService)
 	chunkedUploadService, err := service.NewChunkedUploadService(store, cfg.ChunkTempDir, cfg.AllowedMIMETypes)
