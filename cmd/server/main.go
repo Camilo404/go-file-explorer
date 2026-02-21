@@ -85,7 +85,7 @@ func main() {
 	searchService := service.NewSearchService(store, cfg.SearchMaxDepth, cfg.SearchTimeout)
 	searchHandler := handler.NewSearchHandler(searchService)
 	userHandler := handler.NewUserHandler(authService)
-	storageHandler := handler.NewStorageHandler(store)
+	storageHandler := handler.NewStorageHandler(store, []string{cfg.TrashRoot, cfg.ThumbnailRoot})
 	shareService := service.NewShareService(shareRepo)
 	shareHandler := handler.NewShareHandler(shareService, fileService)
 	appRouter := router.New(cfg, authMiddleware, authHandler, directoryHandler, fileHandler, operationsHandler, searchHandler, auditHandler, jobsHandler, docsHandler, userHandler, storageHandler, shareHandler)
