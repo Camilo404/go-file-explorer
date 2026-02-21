@@ -1,9 +1,11 @@
 package service
 
 import (
-"context"
+	"context"
+	"errors"
 	"crypto/sha256"
 	"encoding/hex"
+	"io"
 "fmt"
 "os"
 	"path"
@@ -63,12 +65,12 @@ DeletedBy:    actor,
 }
 
 trashPath := filepath.Join(s.trashRoot, record.TrashName)
-if err := os.Rename(resolved, trashPath); err != nil {
+	if err := movePath(resolved, trashPath); err != nil {
 return model.TrashRecord{}, fmt.Errorf("move to trash %q: %w", apiPath, err)
 }
 
 if err := s.trashRepo.Create(ctx, record); err != nil {
-_ = os.Rename(trashPath, resolved)
+		_ = movePath(trashPath, resolved)
 return model.TrashRecord{}, err
 }
 
@@ -99,13 +101,13 @@ return model.TrashRecord{}, err
 }
 
 trashPath := filepath.Join(s.trashRoot, record.TrashName)
-if err := os.Rename(trashPath, targetResolved); err != nil {
+	if err := movePath(trashPath, targetResolved); err != nil {
 return model.TrashRecord{}, fmt.Errorf("restore %q: %w", apiPath, err)
 }
 
 now := time.Now().UTC().Format(time.RFC3339Nano)
 if err := s.trashRepo.MarkRestored(ctx, record.ID, actor); err != nil {
-_ = os.Rename(targetResolved, trashPath)
+		_ = movePath(targetResolved, trashPath)
 return model.TrashRecord{}, err
 }
 
@@ -256,4 +258,104 @@ func normalizeAPIPathForTrash(raw string) string {
 	}
 
 	return cleaned
+}
+
+func movePath(source string, destination string) error {
+	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+		return err
+	}
+
+	if err := os.Rename(source, destination); err == nil {
+		return nil
+	} else if !isCrossDeviceRenameError(err) {
+		return err
+	}
+
+	if err := copyPathRecursive(source, destination); err != nil {
+		return err
+	}
+
+	if err := os.RemoveAll(source); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func isCrossDeviceRenameError(err error) bool {
+	var linkErr *os.LinkError
+	if errors.As(err, &linkErr) && strings.Contains(strings.ToLower(linkErr.Err.Error()), "cross-device") {
+		return true
+	}
+
+	return strings.Contains(strings.ToLower(err.Error()), "cross-device")
+}
+
+func copyPathRecursive(source string, destination string) error {
+	info, err := os.Stat(source)
+	if err != nil {
+		return err
+	}
+
+	if !info.IsDir() {
+		return copyFile(source, destination, info.Mode())
+	}
+
+	if err := os.MkdirAll(destination, info.Mode().Perm()); err != nil {
+		return err
+	}
+
+	return filepath.WalkDir(source, func(current string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+
+		rel, relErr := filepath.Rel(source, current)
+		if relErr != nil {
+			return relErr
+		}
+		if rel == "." {
+			return nil
+		}
+
+		target := filepath.Join(destination, rel)
+		entryInfo, infoErr := entry.Info()
+		if infoErr != nil {
+			return infoErr
+		}
+
+		if entry.IsDir() {
+			return os.MkdirAll(target, entryInfo.Mode().Perm())
+		}
+
+		return copyFile(current, target, entryInfo.Mode())
+	})
+}
+
+func copyFile(source string, destination string, mode os.FileMode) error {
+	input, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer input.Close()
+
+	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+		return err
+	}
+
+	output, err := os.OpenFile(destination, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode.Perm())
+	if err != nil {
+		return err
+	}
+
+	_, copyErr := io.Copy(output, input)
+	closeErr := output.Close()
+	if copyErr != nil {
+		return copyErr
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+
+	return nil
 }
