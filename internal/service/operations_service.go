@@ -301,6 +301,118 @@ func (s *OperationsService) EmptyTrash(_ context.Context, actor model.AuditActor
 	return count, nil
 }
 
+func (s *OperationsService) Compress(_ context.Context, sources []string, destination string, name string, actor model.AuditActor) (model.CompressResponse, error) {
+	if len(sources) == 0 {
+		s.audit.Log("compress", actor, "failed", destination, map[string]any{"sources": sources, "destination": destination}, nil, "sources are required")
+		return model.CompressResponse{}, apierror.New("BAD_REQUEST", "sources are required", "sources", http.StatusBadRequest)
+	}
+
+	destination = normalizeAPIPath(destination)
+	if _, err := s.store.Resolve(destination); err != nil {
+		s.audit.Log("compress", actor, "failed", destination, map[string]any{"destination": destination}, nil, err.Error())
+		return model.CompressResponse{}, err
+	}
+
+	if err := s.store.MkdirAll(destination, 0o755); err != nil {
+		s.audit.Log("compress", actor, "failed", destination, map[string]any{"destination": destination}, nil, err.Error())
+		return model.CompressResponse{}, err
+	}
+
+	safeName, err := util.SanitizeFilename(name, false)
+	if err != nil {
+		s.audit.Log("compress", actor, "failed", destination, map[string]any{"name": name}, nil, err.Error())
+		return model.CompressResponse{}, err
+	}
+	if !strings.HasSuffix(strings.ToLower(safeName), ".zip") {
+		safeName += ".zip"
+	}
+
+	zipPathAPI := filepath.ToSlash(filepath.Join(destination, safeName))
+	zipPathResolved, err := s.store.Resolve(zipPathAPI)
+	if err != nil {
+		return model.CompressResponse{}, err
+	}
+
+	if _, err := os.Stat(zipPathResolved); err == nil {
+		s.audit.Log("compress", actor, "failed", zipPathAPI, nil, nil, "target zip already exists")
+		return model.CompressResponse{}, apierror.New("ALREADY_EXISTS", "target zip already exists", zipPathAPI, http.StatusConflict)
+	}
+
+	var sourcePaths []string
+	for _, src := range sources {
+		src = normalizeAPIPath(src)
+		res, err := s.store.Resolve(src)
+		if err != nil {
+			s.audit.Log("compress", actor, "failed", src, nil, nil, err.Error())
+			return model.CompressResponse{}, err
+		}
+		sourcePaths = append(sourcePaths, res)
+	}
+
+	if err := util.Compress(sourcePaths, zipPathResolved); err != nil {
+		s.audit.Log("compress", actor, "failed", zipPathAPI, nil, nil, err.Error())
+		return model.CompressResponse{}, err
+	}
+
+	info, _ := os.Stat(zipPathResolved)
+
+	resp := model.CompressResponse{
+		Path: zipPathAPI,
+		Size: info.Size(),
+	}
+
+	s.audit.Log("compress", actor, "success", zipPathAPI, map[string]any{"sources": sources}, map[string]any{"zip_path": zipPathAPI, "size": info.Size()}, "")
+	return resp, nil
+}
+
+func (s *OperationsService) Decompress(_ context.Context, source string, destination string, conflictPolicy string, actor model.AuditActor) (model.DecompressResponse, error) {
+	source = normalizeAPIPath(source)
+	sourceResolved, err := s.store.Resolve(source)
+	if err != nil {
+		s.audit.Log("decompress", actor, "failed", source, nil, nil, err.Error())
+		return model.DecompressResponse{}, err
+	}
+
+	destination = normalizeAPIPath(destination)
+	destResolved, err := s.store.Resolve(destination)
+	if err != nil {
+		s.audit.Log("decompress", actor, "failed", destination, nil, nil, err.Error())
+		return model.DecompressResponse{}, err
+	}
+
+	if err := s.store.MkdirAll(destination, 0o755); err != nil {
+		s.audit.Log("decompress", actor, "failed", destination, nil, nil, err.Error())
+		return model.DecompressResponse{}, err
+	}
+
+	if conflictPolicy != "overwrite" {
+		conflicts, err := util.CheckZipConflicts(sourceResolved, destResolved)
+		if err != nil {
+			s.audit.Log("decompress", actor, "failed", source, nil, nil, err.Error())
+			return model.DecompressResponse{}, err
+		}
+		if len(conflicts) > 0 {
+			s.audit.Log("decompress", actor, "failed", source, map[string]any{"source": source, "destination": destination}, nil, "conflicting files found")
+			// Return special conflict error/response
+			return model.DecompressResponse{Conflicts: conflicts}, apierror.New("CONFLICT", "conflicting files found", "conflicts", http.StatusConflict)
+		}
+	}
+
+	files, err := util.Decompress(sourceResolved, destResolved)
+	if err != nil {
+		s.audit.Log("decompress", actor, "failed", source, nil, nil, err.Error())
+		return model.DecompressResponse{}, err
+	}
+
+	resp := model.DecompressResponse{
+		Destination: destination,
+		Files:       files,
+	}
+
+	s.audit.Log("decompress", actor, "success", source, map[string]any{"source": source}, map[string]any{"destination": destination, "files_count": len(files)}, "")
+	return resp, nil
+}
+
 func copyRecursive(source string, target string) error {
 	info, err := os.Stat(source)
 	if err != nil {

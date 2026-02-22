@@ -89,6 +89,8 @@ func New(
 			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Put("/files/rename", operationsHandler.Rename)
 			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Put("/files/move", operationsHandler.Move)
 			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/files/copy", operationsHandler.Copy)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/files/compress", operationsHandler.Compress)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/files/decompress", operationsHandler.Decompress)
 			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Delete("/files", operationsHandler.Delete)
 			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/files/restore", operationsHandler.Restore)
 			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Get("/trash", operationsHandler.ListTrash)

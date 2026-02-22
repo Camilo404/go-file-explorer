@@ -216,3 +216,26 @@ type ChunkedUploadChunkResponse struct {
 type ChunkedUploadCompleteResponse struct {
 	File UploadItem `json:"file"`
 }
+
+type CompressRequest struct {
+	Sources     []string `json:"sources"`
+	Destination string   `json:"destination"`
+	Name        string   `json:"name"`
+}
+
+type CompressResponse struct {
+	Path string `json:"path"`
+	Size int64  `json:"size"`
+}
+
+type DecompressRequest struct {
+	Source         string `json:"source"`
+	Destination    string `json:"destination"`
+	ConflictPolicy string `json:"conflict_policy,omitempty"`
+}
+
+type DecompressResponse struct {
+	Destination string   `json:"destination"`
+	Files       []string `json:"files"`
+	Conflicts   []string `json:"conflicts,omitempty"`
+}

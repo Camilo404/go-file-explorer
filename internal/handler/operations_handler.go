@@ -161,3 +161,51 @@ func (h *OperationsHandler) EmptyTrash(w http.ResponseWriter, r *http.Request) {
 
 	writeSuccess(w, http.StatusOK, map[string]any{"deleted_count": count}, nil)
 }
+
+func (h *OperationsHandler) Compress(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	var payload model.CompressRequest
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, apierror.New("BAD_REQUEST", "invalid JSON body", "", http.StatusBadRequest))
+		return
+	}
+
+	result, err := h.service.Compress(r.Context(), payload.Sources, payload.Destination, payload.Name, actorFromRequest(r))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	writeSuccess(w, http.StatusOK, result, nil)
+}
+
+func (h *OperationsHandler) Decompress(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	var payload model.DecompressRequest
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, apierror.New("BAD_REQUEST", "invalid JSON body", "", http.StatusBadRequest))
+		return
+	}
+
+	result, err := h.service.Decompress(r.Context(), payload.Source, payload.Destination, payload.ConflictPolicy, actorFromRequest(r))
+	if err != nil {
+		// If it's a conflict error with data, we want to return the data (list of conflicts)
+		if apiErr, ok := err.(*apierror.APIError); ok && apiErr.Code == "CONFLICT" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			// Return a JSON response manually
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"success": false,
+				"error":   apiErr,
+				"data":    result,
+			})
+			return
+		}
+		writeError(w, err)
+		return
+	}
+
+	writeSuccess(w, http.StatusOK, result, nil)
+}
