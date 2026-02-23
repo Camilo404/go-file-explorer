@@ -128,25 +128,27 @@ func newTestServer(t *testing.T, store storage.Storage, authRateLimitRPM int) *h
 	r := router.New(
 		cfg,
 		authMiddleware,
-		authHandler,
-		directoryHandler,
-		fileHandler,
-		operationsHandler,
-		searchHandler,
-		auditHandler,
-		jobsHandler,
-		docsHandler,
-		userHandler,
-		storageHandler,
-		shareHandler,
-		chunkedUploadHandler,
+		router.Handlers{
+			Auth:          authHandler,
+			Directory:     directoryHandler,
+			File:          fileHandler,
+			Operations:    operationsHandler,
+			Search:        searchHandler,
+			Audit:         auditHandler,
+			Jobs:          jobsHandler,
+			Docs:          docsHandler,
+			User:          userHandler,
+			Storage:       storageHandler,
+			Share:         shareHandler,
+			ChunkedUpload: chunkedUploadHandler,
+		},
 		hub,
 	)
 
 	return httptest.NewServer(r)
 }
 
-func newAuthedServer(t *testing.T, store *storage.Storage) (*httptest.Server, string, string) {
+func newAuthedServer(t *testing.T, store storage.Storage) (*httptest.Server, string, string) {
 	server := newTestServer(t, store, 1000)
 
 	// Login
