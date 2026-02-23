@@ -2,36 +2,36 @@ package service
 
 import (
 	"context"
-	"errors"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"io"
-"fmt"
-"os"
+	"os"
 	"path"
-"path/filepath"
+	"path/filepath"
 	"strconv"
 	"strings"
-"time"
+	"time"
 
-"github.com/google/uuid"
+	"github.com/google/uuid"
 
-"go-file-explorer/internal/model"
-"go-file-explorer/internal/repository"
-"go-file-explorer/internal/storage"
+	"go-file-explorer/internal/model"
+	"go-file-explorer/internal/repository"
+	"go-file-explorer/internal/storage"
 )
 
 type TrashService struct {
-store     *storage.Storage
-trashRoot string
+	store         storage.Storage
+	trashRoot     string
 	thumbnailRoot string
-trashRepo *repository.TrashRepository
+	trashRepo     *repository.TrashRepository
 }
 
-func NewTrashService(store *storage.Storage, trashRoot string, trashRepo *repository.TrashRepository) (*TrashService, error) {
-if err := os.MkdirAll(trashRoot, 0o755); err != nil {
-return nil, fmt.Errorf("prepare trash directory: %w", err)
-}
+func NewTrashService(store storage.Storage, trashRoot string, trashRepo *repository.TrashRepository) (*TrashService, error) {
+	if err := os.MkdirAll(trashRoot, 0o755); err != nil {
+		return nil, fmt.Errorf("prepare trash directory: %w", err)
+	}
 
 	return &TrashService{store: store, trashRoot: trashRoot, thumbnailRoot: "./data/.thumbnails", trashRepo: trashRepo}, nil
 }
@@ -45,99 +45,99 @@ func (s *TrashService) SetThumbnailRoot(thumbnailRoot string) {
 }
 
 func (s *TrashService) SoftDelete(apiPath string, actor model.AuditActor) (model.TrashRecord, error) {
-ctx := context.Background()
+	ctx := context.Background()
 
-resolved, err := s.store.Resolve(apiPath)
-if err != nil {
-return model.TrashRecord{}, err
-}
+	resolved, err := s.store.Resolve(apiPath)
+	if err != nil {
+		return model.TrashRecord{}, err
+	}
 
-if _, err := os.Stat(resolved); err != nil {
-return model.TrashRecord{}, err
-}
+	if _, err := os.Stat(resolved); err != nil {
+		return model.TrashRecord{}, err
+	}
 
-record := model.TrashRecord{
-ID:           uuid.NewString(),
-OriginalPath: apiPath,
-TrashName:    uuid.NewString() + "_" + filepath.Base(apiPath),
-DeletedAt:    time.Now().UTC().Format(time.RFC3339Nano),
-DeletedBy:    actor,
-}
+	record := model.TrashRecord{
+		ID:           uuid.NewString(),
+		OriginalPath: apiPath,
+		TrashName:    uuid.NewString() + "_" + filepath.Base(apiPath),
+		DeletedAt:    time.Now().UTC().Format(time.RFC3339Nano),
+		DeletedBy:    actor,
+	}
 
-trashPath := filepath.Join(s.trashRoot, record.TrashName)
+	trashPath := filepath.Join(s.trashRoot, record.TrashName)
 	if err := movePath(resolved, trashPath); err != nil {
-return model.TrashRecord{}, fmt.Errorf("move to trash %q: %w", apiPath, err)
-}
+		return model.TrashRecord{}, fmt.Errorf("move to trash %q: %w", apiPath, err)
+	}
 
-if err := s.trashRepo.Create(ctx, record); err != nil {
+	if err := s.trashRepo.Create(ctx, record); err != nil {
 		_ = movePath(trashPath, resolved)
-return model.TrashRecord{}, err
-}
+		return model.TrashRecord{}, err
+	}
 
-return record, nil
+	return record, nil
 }
 
 func (s *TrashService) RestoreLatest(apiPath string, actor model.AuditActor) (model.TrashRecord, error) {
-ctx := context.Background()
+	ctx := context.Background()
 
-record, err := s.trashRepo.FindLatestByPath(ctx, apiPath)
-if err != nil {
-return model.TrashRecord{}, err
-}
+	record, err := s.trashRepo.FindLatestByPath(ctx, apiPath)
+	if err != nil {
+		return model.TrashRecord{}, err
+	}
 
-targetResolved, err := s.store.Resolve(apiPath)
-if err != nil {
-return model.TrashRecord{}, err
-}
+	targetResolved, err := s.store.Resolve(apiPath)
+	if err != nil {
+		return model.TrashRecord{}, err
+	}
 
-if _, err := os.Stat(targetResolved); err == nil {
-return model.TrashRecord{}, fmt.Errorf("target already exists")
-} else if !os.IsNotExist(err) {
-return model.TrashRecord{}, err
-}
+	if _, err := os.Stat(targetResolved); err == nil {
+		return model.TrashRecord{}, fmt.Errorf("target already exists")
+	} else if !os.IsNotExist(err) {
+		return model.TrashRecord{}, err
+	}
 
-if err := os.MkdirAll(filepath.Dir(targetResolved), 0o755); err != nil {
-return model.TrashRecord{}, err
-}
+	if err := os.MkdirAll(filepath.Dir(targetResolved), 0o755); err != nil {
+		return model.TrashRecord{}, err
+	}
 
-trashPath := filepath.Join(s.trashRoot, record.TrashName)
+	trashPath := filepath.Join(s.trashRoot, record.TrashName)
 	if err := movePath(trashPath, targetResolved); err != nil {
-return model.TrashRecord{}, fmt.Errorf("restore %q: %w", apiPath, err)
-}
+		return model.TrashRecord{}, fmt.Errorf("restore %q: %w", apiPath, err)
+	}
 
-now := time.Now().UTC().Format(time.RFC3339Nano)
-if err := s.trashRepo.MarkRestored(ctx, record.ID, actor); err != nil {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	if err := s.trashRepo.MarkRestored(ctx, record.ID, actor); err != nil {
 		_ = movePath(targetResolved, trashPath)
-return model.TrashRecord{}, err
-}
+		return model.TrashRecord{}, err
+	}
 
-record.RestoredAt = now
-record.RestoredBy = actor
-return record, nil
+	record.RestoredAt = now
+	record.RestoredBy = actor
+	return record, nil
 }
 
 func (s *TrashService) List(includeRestored bool) ([]model.TrashRecord, error) {
-ctx := context.Background()
-return s.trashRepo.List(ctx, includeRestored)
+	ctx := context.Background()
+	return s.trashRepo.List(ctx, includeRestored)
 }
 
 func (s *TrashService) PermanentDelete(trashID string) error {
-ctx := context.Background()
+	ctx := context.Background()
 
-record, err := s.trashRepo.FindByID(ctx, trashID)
-if err != nil {
-return err
-}
+	record, err := s.trashRepo.FindByID(ctx, trashID)
+	if err != nil {
+		return err
+	}
 
-trashPath := filepath.Join(s.trashRoot, record.TrashName)
+	trashPath := filepath.Join(s.trashRoot, record.TrashName)
 	affectedPaths, collectErr := collectOriginalFilePathsForTrashRecord(trashPath, record.OriginalPath)
 	if collectErr != nil && !os.IsNotExist(collectErr) {
 		return collectErr
 	}
 
-if err := os.RemoveAll(trashPath); err != nil && !os.IsNotExist(err) {
-return fmt.Errorf("remove trash file %q: %w", trashID, err)
-}
+	if err := os.RemoveAll(trashPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove trash file %q: %w", trashID, err)
+	}
 
 	for _, apiPath := range affectedPaths {
 		if err := s.removeThumbnailsForPath(apiPath); err != nil {
@@ -145,28 +145,28 @@ return fmt.Errorf("remove trash file %q: %w", trashID, err)
 		}
 	}
 
-return s.trashRepo.Delete(ctx, trashID)
+	return s.trashRepo.Delete(ctx, trashID)
 }
 
 func (s *TrashService) EmptyTrash() (int, error) {
-ctx := context.Background()
+	ctx := context.Background()
 
-records, err := s.trashRepo.List(ctx, false)
-if err != nil {
-return 0, err
-}
+	records, err := s.trashRepo.List(ctx, false)
+	if err != nil {
+		return 0, err
+	}
 
-count := 0
-for _, record := range records {
-trashPath := filepath.Join(s.trashRoot, record.TrashName)
+	count := 0
+	for _, record := range records {
+		trashPath := filepath.Join(s.trashRoot, record.TrashName)
 		affectedPaths, collectErr := collectOriginalFilePathsForTrashRecord(trashPath, record.OriginalPath)
 		if collectErr != nil && !os.IsNotExist(collectErr) {
 			continue
 		}
 
-if removeErr := os.RemoveAll(trashPath); removeErr != nil && !os.IsNotExist(removeErr) {
-continue
-}
+		if removeErr := os.RemoveAll(trashPath); removeErr != nil && !os.IsNotExist(removeErr) {
+			continue
+		}
 
 		cleanupFailed := false
 		for _, apiPath := range affectedPaths {
@@ -179,14 +179,14 @@ continue
 		if cleanupFailed {
 			continue
 		}
-count++
-}
+		count++
+	}
 
-if _, err := s.trashRepo.DeleteAllNotRestored(ctx); err != nil {
-return count, err
-}
+	if _, err := s.trashRepo.DeleteAllNotRestored(ctx); err != nil {
+		return count, err
+	}
 
-return count, nil
+	return count, nil
 }
 
 func (s *TrashService) removeThumbnailsForPath(apiPath string) error {

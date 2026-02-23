@@ -12,11 +12,11 @@ import (
 )
 
 type StorageHandler struct {
-	store        *storage.Storage
+	store        storage.Storage
 	excludePaths []string // absolute paths to skip when walking
 }
 
-func NewStorageHandler(store *storage.Storage, excludePaths []string) *StorageHandler {
+func NewStorageHandler(store storage.Storage, excludePaths []string) *StorageHandler {
 	cleaned := make([]string, 0, len(excludePaths))
 	for _, p := range excludePaths {
 		abs, err := filepath.Abs(p)

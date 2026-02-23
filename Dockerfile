@@ -26,7 +26,12 @@ COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-RUN mkdir -p /data/.trash /data/.thumbnails /data/.chunks
+RUN addgroup -S explorer && adduser -S explorer -G explorer
+
+RUN mkdir -p /data/.trash /data/.thumbnails /data/.chunks && \
+    chown -R explorer:explorer /app /data
+
+USER explorer
 
 ENV STORAGE_ROOT=/data
 ENV TRASH_ROOT=/data/.trash

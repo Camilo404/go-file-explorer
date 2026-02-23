@@ -8,6 +8,7 @@ import (
 	"image"
 	"io"
 	"math"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -26,22 +27,23 @@ import (
 	_ "golang.org/x/image/tiff"
 	_ "golang.org/x/image/webp"
 
-	"github.com/google/uuid"
 	"go-file-explorer/internal/event"
 	"go-file-explorer/internal/model"
 	"go-file-explorer/internal/storage"
 	"go-file-explorer/internal/util"
 	"go-file-explorer/pkg/apierror"
+
+	"github.com/google/uuid"
 )
 
 type FileService struct {
-	store            *storage.Storage
+	store            storage.Storage
 	allowedMIMETypes map[string]struct{}
 	thumbnailRoot    string
 	bus              event.Bus
 }
 
-func NewFileService(store *storage.Storage, allowedMIMETypes []string, thumbnailRoot string, bus event.Bus) *FileService {
+func NewFileService(store storage.Storage, allowedMIMETypes []string, thumbnailRoot string, bus event.Bus) *FileService {
 	allowed := make(map[string]struct{}, len(allowedMIMETypes))
 	for _, mimeType := range allowedMIMETypes {
 		trimmed := strings.TrimSpace(strings.ToLower(mimeType))
@@ -265,12 +267,12 @@ func (s *FileService) generateVideoThumbnail(resolved, thumbPath string, size in
 	cmd := exec.Command(
 		ffmpegPath,
 		"-hide_banner", "-loglevel", "error",
-		"-ss", "1",          // seek to 1 s (fast input seeking)
-		"-i", resolved,      // input file
-		"-frames:v", "1",    // extract one frame
+		"-ss", "1", // seek to 1 s (fast input seeking)
+		"-i", resolved, // input file
+		"-frames:v", "1", // extract one frame
 		"-vf", "scale='min("+sizeStr+"\\,iw)':'min("+sizeStr+"\\,ih)':force_original_aspect_ratio=decrease",
-		"-q:v", "2",         // JPEG quality (2 = high)
-		"-y",                // overwrite
+		"-q:v", "2", // JPEG quality (2 = high)
+		"-y", // overwrite
 		tmpPath,
 	)
 	cmd.Stderr = nil
@@ -485,7 +487,13 @@ func (s *FileService) isAllowedMIME(mimeType string) bool {
 		return true
 	}
 
-	_, exact := s.allowedMIMETypes[strings.ToLower(strings.TrimSpace(mimeType))]
+	baseMIME, _, err := mime.ParseMediaType(mimeType)
+	if err != nil {
+		// If we can't parse it, try the raw string as fallback
+		baseMIME = strings.ToLower(strings.TrimSpace(mimeType))
+	}
+
+	_, exact := s.allowedMIMETypes[baseMIME]
 	if exact {
 		return true
 	}
@@ -493,7 +501,7 @@ func (s *FileService) isAllowedMIME(mimeType string) bool {
 	for allowed := range s.allowedMIMETypes {
 		if strings.HasSuffix(allowed, "/*") {
 			prefix := strings.TrimSuffix(allowed, "*")
-			if strings.HasPrefix(strings.ToLower(mimeType), prefix) {
+			if strings.HasPrefix(baseMIME, prefix) {
 				return true
 			}
 		}

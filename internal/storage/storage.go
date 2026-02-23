@@ -7,15 +7,27 @@ import (
 	"path/filepath"
 )
 
-type Storage struct {
+type Storage interface {
+	RootAbs() string
+	Resolve(clientPath string) (string, error)
+	MkdirAll(clientPath string, perm fs.FileMode) error
+	Stat(clientPath string) (fs.FileInfo, error)
+	ReadDir(clientPath string) ([]fs.DirEntry, error)
+	RemoveAll(clientPath string) error
+	Rename(oldPath string, newPath string) error
+	OpenForRead(clientPath string) (*os.File, error)
+	OpenForWrite(clientPath string) (*os.File, error)
+}
+
+type Local struct {
 	validator *PathValidator
 }
 
-func (s *Storage) RootAbs() string {
+func (s *Local) RootAbs() string {
 	return s.validator.RootAbs()
 }
 
-func New(root string) (*Storage, error) {
+func New(root string) (Storage, error) {
 	validator, err := NewPathValidator(root)
 	if err != nil {
 		return nil, err
@@ -25,14 +37,14 @@ func New(root string) (*Storage, error) {
 		return nil, fmt.Errorf("create storage root: %w", err)
 	}
 
-	return &Storage{validator: validator}, nil
+	return &Local{validator: validator}, nil
 }
 
-func (s *Storage) Resolve(clientPath string) (string, error) {
+func (s *Local) Resolve(clientPath string) (string, error) {
 	return s.validator.ResolvePath(clientPath)
 }
 
-func (s *Storage) MkdirAll(clientPath string, perm fs.FileMode) error {
+func (s *Local) MkdirAll(clientPath string, perm fs.FileMode) error {
 	resolved, err := s.Resolve(clientPath)
 	if err != nil {
 		return err
@@ -45,7 +57,7 @@ func (s *Storage) MkdirAll(clientPath string, perm fs.FileMode) error {
 	return nil
 }
 
-func (s *Storage) Stat(clientPath string) (fs.FileInfo, error) {
+func (s *Local) Stat(clientPath string) (fs.FileInfo, error) {
 	resolved, err := s.Resolve(clientPath)
 	if err != nil {
 		return nil, err
@@ -59,7 +71,7 @@ func (s *Storage) Stat(clientPath string) (fs.FileInfo, error) {
 	return info, nil
 }
 
-func (s *Storage) ReadDir(clientPath string) ([]fs.DirEntry, error) {
+func (s *Local) ReadDir(clientPath string) ([]fs.DirEntry, error) {
 	resolved, err := s.Resolve(clientPath)
 	if err != nil {
 		return nil, err
@@ -73,7 +85,7 @@ func (s *Storage) ReadDir(clientPath string) ([]fs.DirEntry, error) {
 	return entries, nil
 }
 
-func (s *Storage) RemoveAll(clientPath string) error {
+func (s *Local) RemoveAll(clientPath string) error {
 	resolved, err := s.Resolve(clientPath)
 	if err != nil {
 		return err
@@ -86,7 +98,7 @@ func (s *Storage) RemoveAll(clientPath string) error {
 	return nil
 }
 
-func (s *Storage) Rename(oldPath string, newPath string) error {
+func (s *Local) Rename(oldPath string, newPath string) error {
 	oldResolved, err := s.Resolve(oldPath)
 	if err != nil {
 		return err
@@ -108,7 +120,7 @@ func (s *Storage) Rename(oldPath string, newPath string) error {
 	return nil
 }
 
-func (s *Storage) OpenForRead(clientPath string) (*os.File, error) {
+func (s *Local) OpenForRead(clientPath string) (*os.File, error) {
 	resolved, err := s.Resolve(clientPath)
 	if err != nil {
 		return nil, err
@@ -122,7 +134,7 @@ func (s *Storage) OpenForRead(clientPath string) (*os.File, error) {
 	return file, nil
 }
 
-func (s *Storage) OpenForWrite(clientPath string) (*os.File, error) {
+func (s *Local) OpenForWrite(clientPath string) (*os.File, error) {
 	resolved, err := s.Resolve(clientPath)
 	if err != nil {
 		return nil, err

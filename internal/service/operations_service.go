@@ -19,13 +19,13 @@ import (
 )
 
 type OperationsService struct {
-	store *storage.Storage
+	store storage.Storage
 	trash *TrashService
 	audit *AuditService
 	bus   event.Bus
 }
 
-func NewOperationsService(store *storage.Storage, trash *TrashService, audit *AuditService, bus event.Bus) *OperationsService {
+func NewOperationsService(store storage.Storage, trash *TrashService, audit *AuditService, bus event.Bus) *OperationsService {
 	return &OperationsService{store: store, trash: trash, audit: audit, bus: bus}
 }
 

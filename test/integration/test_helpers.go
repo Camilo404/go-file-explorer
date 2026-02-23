@@ -27,7 +27,7 @@ import (
 	"go-file-explorer/internal/websocket"
 )
 
-func newTestServer(t *testing.T, store *storage.Storage, authRateLimitRPM int) *httptest.Server {
+func newTestServer(t *testing.T, store storage.Storage, authRateLimitRPM int) *httptest.Server {
 	t.Helper()
 
 	// Database setup

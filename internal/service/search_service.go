@@ -19,13 +19,13 @@ import (
 )
 
 type SearchService struct {
-	store      *storage.Storage
+	store      storage.Storage
 	maxDepth   int
 	timeout    time.Duration
 	maxResults int
 }
 
-func NewSearchService(store *storage.Storage, maxDepth int, timeout time.Duration) *SearchService {
+func NewSearchService(store storage.Storage, maxDepth int, timeout time.Duration) *SearchService {
 	if maxDepth <= 0 {
 		maxDepth = 10
 	}

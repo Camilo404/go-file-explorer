@@ -43,7 +43,7 @@ type uploadSession struct {
 // ── Service ──────────────────────────────────────────────────────
 
 type ChunkedUploadService struct {
-	store            *storage.Storage
+	store            storage.Storage
 	tempDir          string
 	allowedMIMETypes map[string]struct{}
 	bus              event.Bus
@@ -52,7 +52,7 @@ type ChunkedUploadService struct {
 	sessions map[string]*uploadSession
 }
 
-func NewChunkedUploadService(store *storage.Storage, tempDir string, allowedMIMETypes []string, bus event.Bus) (*ChunkedUploadService, error) {
+func NewChunkedUploadService(store storage.Storage, tempDir string, allowedMIMETypes []string, bus event.Bus) (*ChunkedUploadService, error) {
 	if strings.TrimSpace(tempDir) == "" {
 		tempDir = "./data/.chunks"
 	}

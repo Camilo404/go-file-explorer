@@ -21,11 +21,11 @@ import (
 )
 
 type DirectoryService struct {
-	store *storage.Storage
+	store storage.Storage
 	bus   event.Bus
 }
 
-func NewDirectoryService(store *storage.Storage, bus event.Bus) *DirectoryService {
+func NewDirectoryService(store storage.Storage, bus event.Bus) *DirectoryService {
 	return &DirectoryService{store: store, bus: bus}
 }
 
