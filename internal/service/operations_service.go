@@ -7,21 +7,26 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"go-file-explorer/internal/event"
 	"go-file-explorer/internal/model"
 	"go-file-explorer/internal/storage"
 	"go-file-explorer/internal/util"
 	"go-file-explorer/pkg/apierror"
+
+	"github.com/google/uuid"
 )
 
 type OperationsService struct {
 	store *storage.Storage
 	trash *TrashService
 	audit *AuditService
+	bus   event.Bus
 }
 
-func NewOperationsService(store *storage.Storage, trash *TrashService, audit *AuditService) *OperationsService {
-	return &OperationsService{store: store, trash: trash, audit: audit}
+func NewOperationsService(store *storage.Storage, trash *TrashService, audit *AuditService, bus event.Bus) *OperationsService {
+	return &OperationsService{store: store, trash: trash, audit: audit, bus: bus}
 }
 
 func (s *OperationsService) Rename(_ context.Context, oldPath string, newName string, actor model.AuditActor) (model.RenameResponse, error) {
@@ -70,6 +75,17 @@ func (s *OperationsService) Rename(_ context.Context, oldPath string, newName st
 
 	result := model.RenameResponse{OldPath: normalizeAPIPath(oldPath), NewPath: newAPIPath, Name: safeName}
 	s.audit.Log("rename", actor, "success", normalizeAPIPath(oldPath), map[string]any{"path": normalizeAPIPath(oldPath)}, map[string]any{"path": newAPIPath}, "")
+
+	if s.bus != nil {
+		s.bus.Publish(event.Event{
+			ID:        uuid.NewString(),
+			Type:      event.TypeFileMoved,
+			Payload:   result,
+			Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+			ActorID:   actor.Username,
+		})
+	}
+
 	return result, nil
 }
 
@@ -133,6 +149,16 @@ func (s *OperationsService) Move(_ context.Context, sources []string, destinatio
 
 		result.Moved = append(result.Moved, model.MoveCopyResult{From: source, To: resolvedTarget})
 		s.audit.Log("move", actor, "success", source, map[string]any{"from": source}, map[string]any{"to": resolvedTarget}, "")
+
+		if s.bus != nil {
+			s.bus.Publish(event.Event{
+				ID:        uuid.NewString(),
+				Type:      event.TypeFileMoved,
+				Payload:   model.MoveCopyResult{From: source, To: resolvedTarget},
+				Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+				ActorID:   actor.Username,
+			})
+		}
 	}
 
 	return result, nil
@@ -207,6 +233,16 @@ func (s *OperationsService) Copy(_ context.Context, sources []string, destinatio
 
 		result.Copied = append(result.Copied, model.MoveCopyResult{From: source, To: resolvedTarget})
 		s.audit.Log("copy", actor, "success", source, map[string]any{"from": source}, map[string]any{"to": resolvedTarget}, "")
+
+		if s.bus != nil {
+			s.bus.Publish(event.Event{
+				ID:        uuid.NewString(),
+				Type:      event.TypeFileCopied,
+				Payload:   model.MoveCopyResult{From: source, To: resolvedTarget},
+				Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+				ActorID:   actor.Username,
+			})
+		}
 	}
 
 	return result, nil
@@ -237,6 +273,16 @@ func (s *OperationsService) Delete(_ context.Context, paths []string, actor mode
 
 		result.Deleted = append(result.Deleted, path)
 		s.audit.Log("delete", actor, "success", path, map[string]any{"path": path}, map[string]any{"trash_id": record.ID, "deleted_at": record.DeletedAt}, "")
+
+		if s.bus != nil {
+			s.bus.Publish(event.Event{
+				ID:        uuid.NewString(),
+				Type:      event.TypeFileDeleted,
+				Payload:   map[string]string{"path": path},
+				Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+				ActorID:   actor.Username,
+			})
+		}
 	}
 
 	return result, nil
@@ -362,6 +408,17 @@ func (s *OperationsService) Compress(_ context.Context, sources []string, destin
 	}
 
 	s.audit.Log("compress", actor, "success", zipPathAPI, map[string]any{"sources": sources}, map[string]any{"zip_path": zipPathAPI, "size": info.Size()}, "")
+
+	if s.bus != nil {
+		s.bus.Publish(event.Event{
+			ID:        uuid.NewString(),
+			Type:      event.TypeFileCompressed,
+			Payload:   resp,
+			Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+			ActorID:   actor.Username,
+		})
+	}
+
 	return resp, nil
 }
 
@@ -410,6 +467,17 @@ func (s *OperationsService) Decompress(_ context.Context, source string, destina
 	}
 
 	s.audit.Log("decompress", actor, "success", source, map[string]any{"source": source}, map[string]any{"destination": destination, "files_count": len(files)}, "")
+
+	if s.bus != nil {
+		s.bus.Publish(event.Event{
+			ID:        uuid.NewString(),
+			Type:      event.TypeFileDecompressed,
+			Payload:   resp,
+			Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+			ActorID:   actor.Username,
+		})
+	}
+
 	return resp, nil
 }
 

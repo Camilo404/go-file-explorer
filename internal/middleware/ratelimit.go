@@ -27,9 +27,7 @@ type RateLimitMiddleware struct {
 }
 
 func NewRateLimitMiddleware(generalRPM int, authRPM int) *RateLimitMiddleware {
-	if generalRPM <= 0 {
-		generalRPM = 100
-	}
+	// generalRPM <= 0 means unlimited
 	if authRPM <= 0 {
 		authRPM = 10
 	}
@@ -84,7 +82,12 @@ func (m *RateLimitMiddleware) getLimiter(clientIP string) *clientLimiter {
 		return limiter
 	}
 
-	general := rate.NewLimiter(rate.Every(time.Minute/time.Duration(m.generalRPM)), m.generalRPM)
+	var general *rate.Limiter
+	if m.generalRPM <= 0 {
+		general = rate.NewLimiter(rate.Inf, 0)
+	} else {
+		general = rate.NewLimiter(rate.Every(time.Minute/time.Duration(m.generalRPM)), m.generalRPM)
+	}
 	auth := rate.NewLimiter(rate.Every(time.Minute/time.Duration(m.authRPM)), m.authRPM)
 	created := &clientLimiter{general: general, auth: auth, lastSeen: time.Now()}
 	m.clients[clientIP] = created

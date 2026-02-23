@@ -8,6 +8,7 @@ import (
 	"go-file-explorer/internal/config"
 	"go-file-explorer/internal/handler"
 	"go-file-explorer/internal/middleware"
+	"go-file-explorer/internal/websocket"
 )
 
 func New(
@@ -25,6 +26,7 @@ func New(
 	storageHandler *handler.StorageHandler,
 	shareHandler *handler.ShareHandler,
 	chunkedUploadHandler *handler.ChunkedUploadHandler,
+	hub *websocket.Hub,
 ) http.Handler {
 	r := chi.NewRouter()
 	rateLimitMiddleware := middleware.NewRateLimitMiddleware(cfg.RateLimitRPM, cfg.AuthRateLimitRPM)
@@ -59,6 +61,11 @@ func New(
 
 		// Chunked uploads — chunk write uses streaming; init/complete/abort are lightweight JSON.
 		api.With(streaming, authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Put("/uploads/{upload_id}/chunks/{chunk_index}", chunkedUploadHandler.UploadChunk)
+
+		// WebSocket endpoint for real-time notifications
+		api.With(authMiddleware.RequireAuth).Get("/ws", func(w http.ResponseWriter, r *http.Request) {
+			websocket.ServeWs(hub, w, r)
+		})
 
 		// ── Standard routes ──────────────────────────────────────────
 		// Short-lived JSON endpoints keep the strict http.TimeoutHandler

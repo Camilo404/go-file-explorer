@@ -26,6 +26,8 @@ import (
 	_ "golang.org/x/image/tiff"
 	_ "golang.org/x/image/webp"
 
+	"github.com/google/uuid"
+	"go-file-explorer/internal/event"
 	"go-file-explorer/internal/model"
 	"go-file-explorer/internal/storage"
 	"go-file-explorer/internal/util"
@@ -36,9 +38,10 @@ type FileService struct {
 	store            *storage.Storage
 	allowedMIMETypes map[string]struct{}
 	thumbnailRoot    string
+	bus              event.Bus
 }
 
-func NewFileService(store *storage.Storage, allowedMIMETypes []string, thumbnailRoot string) *FileService {
+func NewFileService(store *storage.Storage, allowedMIMETypes []string, thumbnailRoot string, bus event.Bus) *FileService {
 	allowed := make(map[string]struct{}, len(allowedMIMETypes))
 	for _, mimeType := range allowedMIMETypes {
 		trimmed := strings.TrimSpace(strings.ToLower(mimeType))
@@ -52,7 +55,7 @@ func NewFileService(store *storage.Storage, allowedMIMETypes []string, thumbnail
 		thumbnailRoot = "./data/.thumbnails"
 	}
 
-	return &FileService{store: store, allowedMIMETypes: allowed, thumbnailRoot: thumbnailRoot}
+	return &FileService{store: store, allowedMIMETypes: allowed, thumbnailRoot: thumbnailRoot, bus: bus}
 }
 
 func (s *FileService) Upload(_ context.Context, destination string, filename string, conflictPolicy string, reader io.Reader) (model.UploadItem, error) {
@@ -107,6 +110,15 @@ func (s *FileService) Upload(_ context.Context, destination string, filename str
 		Path:     targetPath,
 		Size:     written,
 		MimeType: detectedMIME,
+	}
+
+	if s.bus != nil {
+		s.bus.Publish(event.Event{
+			ID:        uuid.NewString(),
+			Type:      event.TypeFileUploaded,
+			Payload:   item,
+			Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+		})
 	}
 
 	return item, nil

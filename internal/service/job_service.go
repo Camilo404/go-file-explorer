@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"go-file-explorer/internal/event"
 	"go-file-explorer/internal/model"
 	"go-file-explorer/internal/repository"
 	"go-file-explorer/pkg/apierror"
@@ -38,9 +39,10 @@ type JobService struct {
 	subscribers map[string][]chan JobUpdate
 
 	jobRepo *repository.JobRepository
+	bus     event.Bus
 }
 
-func NewJobService(operations *OperationsService, jobRepo *repository.JobRepository) *JobService {
+func NewJobService(operations *OperationsService, jobRepo *repository.JobRepository, bus event.Bus) *JobService {
 	s := &JobService{
 		operations:  operations,
 		jobs:        map[string]*model.JobData{},
@@ -48,6 +50,7 @@ func NewJobService(operations *OperationsService, jobRepo *repository.JobReposit
 		queue:       make(chan queuedOperationJob, 256),
 		subscribers: map[string][]chan JobUpdate{},
 		jobRepo:     jobRepo,
+		bus:         bus,
 	}
 
 	go s.workerLoop()
@@ -57,26 +60,26 @@ func NewJobService(operations *OperationsService, jobRepo *repository.JobReposit
 func (s *JobService) CreateOperationJob(request model.JobOperationRequest, actor model.AuditActor) (model.JobData, error) {
 	_ = actor
 	operation := strings.ToLower(strings.TrimSpace(request.Operation))
-	if operation != "copy" && operation != "move" && operation != "delete" {
-		return model.JobData{}, apierror.New("BAD_REQUEST", "operation must be one of: copy|move|delete", request.Operation, http.StatusBadRequest)
+	if operation != "copy" && operation != "move" && operation != "delete" && operation != "compress" && operation != "decompress" {
+		return model.JobData{}, apierror.New("BAD_REQUEST", "operation must be one of: copy|move|delete|compress|decompress", request.Operation, http.StatusBadRequest)
 	}
 
 	total := len(request.Sources)
-	if operation == "delete" {
+	if operation == "delete" || operation == "restore" {
 		total = len(request.Paths)
 	}
 	if total == 0 {
 		return model.JobData{}, apierror.New("BAD_REQUEST", "job requires at least one source/path", "sources|paths", http.StatusBadRequest)
 	}
 
-	if operation == "copy" || operation == "move" {
+	if operation == "copy" || operation == "move" || operation == "compress" || operation == "decompress" {
 		if strings.TrimSpace(request.Destination) == "" {
-			return model.JobData{}, apierror.New("BAD_REQUEST", "destination is required for copy/move", "destination", http.StatusBadRequest)
+			return model.JobData{}, apierror.New("BAD_REQUEST", "destination is required for copy/move/compress/decompress", "destination", http.StatusBadRequest)
 		}
 	}
 
 	policy := strings.TrimSpace(request.ConflictPolicy)
-	if operation == "copy" || operation == "move" {
+	if operation == "copy" || operation == "move" || operation == "decompress" {
 		normalized, err := normalizeConflictPolicy(policy)
 		if err != nil {
 			return model.JobData{}, err
@@ -234,6 +237,31 @@ func (s *JobService) process(jobID string) {
 		for _, failed := range result.Failed {
 			items = append(items, model.JobItemResult{Path: failed.Path, Status: "failed", Reason: failed.Reason})
 		}
+	case "compress":
+		request := s.lookupRequest(jobID)
+		// Compress treats sources as inputs
+		result, err := s.operations.Compress(ctx, request.Sources, request.Destination, request.Name, model.AuditActor{})
+		if err != nil {
+			items = append(items, model.JobItemResult{Status: "failed", Reason: err.Error()})
+		} else {
+			// One item representing the zip file
+			items = append(items, model.JobItemResult{Path: result.Path, Status: "success"})
+		}
+	case "decompress":
+		request := s.lookupRequest(jobID)
+		// Decompress treats sources[0] as the zip file
+		if len(request.Sources) == 0 {
+			items = append(items, model.JobItemResult{Status: "failed", Reason: "no source file provided"})
+		} else {
+			result, err := s.operations.Decompress(ctx, request.Sources[0], request.Destination, request.ConflictPolicy, model.AuditActor{})
+			if err != nil {
+				items = append(items, model.JobItemResult{Status: "failed", Reason: err.Error()})
+			} else {
+				for _, file := range result.Files {
+					items = append(items, model.JobItemResult{Path: file, Status: "success"})
+				}
+			}
+		}
 	}
 
 	s.finalize(jobID, items)
@@ -361,6 +389,24 @@ func (s *JobService) notifySubscribers(jobID string, update JobUpdate) {
 		case ch <- update:
 		default:
 		}
+	}
+
+	if s.bus != nil {
+		eventType := event.TypeJobProgress
+		if update.Status == "running" && update.Progress <= 5 {
+			eventType = event.TypeJobStarted
+		} else if update.Status == "completed" {
+			eventType = event.TypeJobCompleted
+		} else if update.Status == "failed" {
+			eventType = event.TypeJobFailed
+		}
+
+		s.bus.Publish(event.Event{
+			ID:        uuid.NewString(),
+			Type:      eventType,
+			Payload:   update,
+			Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+		})
 	}
 }
 

@@ -133,6 +133,7 @@ type JobOperationRequest struct {
 	Operation      string   `json:"operation"`
 	Sources        []string `json:"sources,omitempty"`
 	Destination    string   `json:"destination,omitempty"`
+	Name           string   `json:"name,omitempty"` // Added for compress
 	Paths          []string `json:"paths,omitempty"`
 	ConflictPolicy string   `json:"conflict_policy,omitempty"`
 }

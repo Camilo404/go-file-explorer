@@ -30,7 +30,7 @@ func newAuthedServer(t *testing.T, store *storage.Storage) (*httptest.Server, st
 	authMiddleware := middleware.NewAuthMiddleware(authService)
 	authHandler := handler.NewAuthHandler(authService)
 
-	directoryService := service.NewDirectoryService(store)
+	directoryService := service.NewDirectoryService(store, nil)
 	directoryHandler := handler.NewDirectoryHandler(directoryService)
 	thumbnailRoot := filepath.Join(t.TempDir(), "thumbnails")
 	fileService := service.NewFileService(store, nil, thumbnailRoot)

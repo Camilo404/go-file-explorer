@@ -14,10 +14,13 @@ import (
 	"sync"
 	"time"
 
+	"go-file-explorer/internal/event"
 	"go-file-explorer/internal/model"
 	"go-file-explorer/internal/storage"
 	"go-file-explorer/internal/util"
 	"go-file-explorer/pkg/apierror"
+
+	"github.com/google/uuid"
 )
 
 // ── Upload session (in-memory metadata) ──────────────────────────
@@ -43,12 +46,13 @@ type ChunkedUploadService struct {
 	store            *storage.Storage
 	tempDir          string
 	allowedMIMETypes map[string]struct{}
+	bus              event.Bus
 
 	mu       sync.RWMutex
 	sessions map[string]*uploadSession
 }
 
-func NewChunkedUploadService(store *storage.Storage, tempDir string, allowedMIMETypes []string) (*ChunkedUploadService, error) {
+func NewChunkedUploadService(store *storage.Storage, tempDir string, allowedMIMETypes []string, bus event.Bus) (*ChunkedUploadService, error) {
 	if strings.TrimSpace(tempDir) == "" {
 		tempDir = "./data/.chunks"
 	}
@@ -75,6 +79,7 @@ func NewChunkedUploadService(store *storage.Storage, tempDir string, allowedMIME
 		tempDir:          abs,
 		allowedMIMETypes: allowed,
 		sessions:         make(map[string]*uploadSession),
+		bus:              bus,
 	}, nil
 }
 
@@ -331,12 +336,23 @@ func (s *ChunkedUploadService) CompleteUpload(_ context.Context, uploadID string
 		"size", info.Size(),
 	)
 
-	return model.UploadItem{
+	item := model.UploadItem{
 		Name:     sess.fileName,
 		Path:     targetPath,
 		Size:     info.Size(),
 		MimeType: detectedMIME,
-	}, nil
+	}
+
+	if s.bus != nil {
+		s.bus.Publish(event.Event{
+			ID:        uuid.NewString(),
+			Type:      event.TypeFileUploaded,
+			Payload:   item,
+			Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+		})
+	}
+
+	return item, nil
 }
 
 // ── Abort ────────────────────────────────────────────────────────

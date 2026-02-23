@@ -11,16 +11,25 @@ import (
 
 	"go-file-explorer/internal/config"
 	"go-file-explorer/internal/database"
+	"go-file-explorer/internal/event"
 	"go-file-explorer/internal/handler"
+	"go-file-explorer/internal/logger"
 	"go-file-explorer/internal/middleware"
 	"go-file-explorer/internal/repository"
 	"go-file-explorer/internal/router"
 	"go-file-explorer/internal/service"
 	"go-file-explorer/internal/storage"
+	"go-file-explorer/internal/websocket"
 	"net/http"
 )
 
 func main() {
+	// Initialize custom logger with colors
+	logHandler := logger.NewPrettyHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})
+	slog.SetDefault(slog.New(logHandler))
+
 	cfg, err := config.Load()
 	if err != nil {
 		slog.Error("failed to load config", "error", err)
@@ -65,9 +74,14 @@ func main() {
 	authMiddleware := middleware.NewAuthMiddleware(authService)
 	authHandler := handler.NewAuthHandler(authService)
 
-	directoryService := service.NewDirectoryService(store)
+	// ── Event Bus & WebSocket ────────────────────────────────────────
+	bus := event.NewBus()
+	hub := websocket.NewHub(bus)
+	go hub.Run()
+
+	directoryService := service.NewDirectoryService(store, bus)
 	directoryHandler := handler.NewDirectoryHandler(directoryService)
-	fileService := service.NewFileService(store, cfg.AllowedMIMETypes, cfg.ThumbnailRoot)
+	fileService := service.NewFileService(store, cfg.AllowedMIMETypes, cfg.ThumbnailRoot, bus)
 	fileHandler := handler.NewFileHandler(fileService, cfg.MaxUploadSize)
 	trashService, err := service.NewTrashService(store, cfg.TrashRoot, trashRepo)
 	if err != nil {
@@ -78,9 +92,9 @@ func main() {
 	auditService := service.NewAuditService(auditRepo)
 	auditHandler := handler.NewAuditHandler(auditService)
 	docsHandler := handler.NewDocsHandler("./docs/openapi.yaml")
-	operationsService := service.NewOperationsService(store, trashService, auditService)
+	operationsService := service.NewOperationsService(store, trashService, auditService, bus)
 	operationsHandler := handler.NewOperationsHandler(operationsService)
-	jobService := service.NewJobService(operationsService, jobRepo)
+	jobService := service.NewJobService(operationsService, jobRepo, bus)
 	jobsHandler := handler.NewJobsHandler(jobService)
 	searchService := service.NewSearchService(store, cfg.SearchMaxDepth, cfg.SearchTimeout)
 	searchHandler := handler.NewSearchHandler(searchService)
@@ -88,13 +102,13 @@ func main() {
 	storageHandler := handler.NewStorageHandler(store, []string{cfg.TrashRoot, cfg.ThumbnailRoot, cfg.ChunkTempDir})
 	shareService := service.NewShareService(shareRepo)
 	shareHandler := handler.NewShareHandler(shareService, fileService)
-	chunkedUploadService, err := service.NewChunkedUploadService(store, cfg.ChunkTempDir, cfg.AllowedMIMETypes)
+	chunkedUploadService, err := service.NewChunkedUploadService(store, cfg.ChunkTempDir, cfg.AllowedMIMETypes, bus)
 	if err != nil {
 		slog.Error("failed to initialize chunked upload service", "error", err)
 		os.Exit(1)
 	}
 	chunkedUploadHandler := handler.NewChunkedUploadHandler(chunkedUploadService, cfg.ChunkMaxSize)
-	appRouter := router.New(cfg, authMiddleware, authHandler, directoryHandler, fileHandler, operationsHandler, searchHandler, auditHandler, jobsHandler, docsHandler, userHandler, storageHandler, shareHandler, chunkedUploadHandler)
+	appRouter := router.New(cfg, authMiddleware, authHandler, directoryHandler, fileHandler, operationsHandler, searchHandler, auditHandler, jobsHandler, docsHandler, userHandler, storageHandler, shareHandler, chunkedUploadHandler, hub)
 
 	// ── Chunked upload cleanup goroutine ─────────────────────────
 	cleanupCtx, cleanupCancel := context.WithCancel(context.Background())

@@ -11,18 +11,22 @@ import (
 	"strings"
 	"time"
 
+	"go-file-explorer/internal/event"
 	"go-file-explorer/internal/model"
 	"go-file-explorer/internal/storage"
 	"go-file-explorer/internal/util"
 	"go-file-explorer/pkg/apierror"
+
+	"github.com/google/uuid"
 )
 
 type DirectoryService struct {
 	store *storage.Storage
+	bus   event.Bus
 }
 
-func NewDirectoryService(store *storage.Storage) *DirectoryService {
-	return &DirectoryService{store: store}
+func NewDirectoryService(store *storage.Storage, bus event.Bus) *DirectoryService {
+	return &DirectoryService{store: store, bus: bus}
 }
 
 func (s *DirectoryService) List(_ context.Context, requestedPath string, page int, limit int, sortBy string, order string) (model.DirectoryListData, model.Meta, error) {
@@ -177,6 +181,15 @@ func (s *DirectoryService) Create(_ context.Context, basePath string, name strin
 		Path:      fullPath,
 		Type:      "directory",
 		CreatedAt: time.Now().UTC(),
+	}
+
+	if s.bus != nil {
+		s.bus.Publish(event.Event{
+			ID:        uuid.NewString(),
+			Type:      event.TypeDirCreated,
+			Payload:   data,
+			Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+		})
 	}
 
 	return data, nil
