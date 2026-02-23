@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -61,7 +62,7 @@ func (s *JobService) CreateOperationJob(request model.JobOperationRequest, actor
 	_ = actor
 	operation := strings.ToLower(strings.TrimSpace(request.Operation))
 	if operation != "copy" && operation != "move" && operation != "delete" && operation != "compress" && operation != "decompress" {
-		return model.JobData{}, apierror.New("BAD_REQUEST", "operation must be one of: copy|move|delete|compress|decompress", request.Operation, http.StatusBadRequest)
+		return model.JobData{}, fmt.Errorf("%w: operation must be one of: copy|move|delete|compress|decompress", model.ErrInvalidInput)
 	}
 
 	total := len(request.Sources)
@@ -69,12 +70,12 @@ func (s *JobService) CreateOperationJob(request model.JobOperationRequest, actor
 		total = len(request.Paths)
 	}
 	if total == 0 {
-		return model.JobData{}, apierror.New("BAD_REQUEST", "job requires at least one source/path", "sources|paths", http.StatusBadRequest)
+		return model.JobData{}, fmt.Errorf("%w: job requires at least one source/path", model.ErrInvalidInput)
 	}
 
 	if operation == "copy" || operation == "move" || operation == "compress" || operation == "decompress" {
 		if strings.TrimSpace(request.Destination) == "" {
-			return model.JobData{}, apierror.New("BAD_REQUEST", "destination is required for copy/move/compress/decompress", "destination", http.StatusBadRequest)
+			return model.JobData{}, fmt.Errorf("%w: destination is required for copy/move/compress/decompress", model.ErrInvalidInput)
 		}
 	}
 

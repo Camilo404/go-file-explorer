@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go-file-explorer/internal/model"
 )
 
 type TokenRepository struct {
@@ -36,7 +37,7 @@ func (r *TokenRepository) Validate(ctx context.Context, token string) (string, e
 		 WHERE token = $1 AND expires_at > now()`, token).Scan(&userID)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", fmt.Errorf("refresh token not found or expired")
+		return "", model.ErrTokenNotFound
 	}
 	if err != nil {
 		return "", fmt.Errorf("validate refresh token: %w", err)

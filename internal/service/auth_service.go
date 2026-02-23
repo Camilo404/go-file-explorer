@@ -69,7 +69,7 @@ func (s *AuthService) Login(username string, password string) (model.TokenPair, 
 	ctx := context.Background()
 	user, err := s.userRepo.FindByUsername(ctx, username)
 	if err != nil {
-		return model.TokenPair{}, apierror.New("UNAUTHORIZED", "invalid credentials", "", http.StatusUnauthorized)
+		return model.TokenPair{}, model.ErrInvalidCredentials
 	}
 
 	// ── Account lockout check ────────────────────────────────────
@@ -94,7 +94,7 @@ func (s *AuthService) Login(username string, password string) (model.TokenPair, 
 				fmt.Sprintf("too many failed attempts, account locked for %s", LockoutDuration), "", http.StatusTooManyRequests)
 		}
 
-		return model.TokenPair{}, apierror.New("UNAUTHORIZED", "invalid credentials", "", http.StatusUnauthorized)
+		return model.TokenPair{}, model.ErrInvalidCredentials
 	}
 
 	// ── Successful login: reset failed attempts ──────────────────
@@ -139,7 +139,7 @@ func (s *AuthService) Register(username string, password string, role string) (m
 		return model.AuthUser{}, err
 	}
 	if exists {
-		return model.AuthUser{}, apierror.New("ALREADY_EXISTS", "username already exists", username, http.StatusConflict)
+		return model.AuthUser{}, model.ErrUserAlreadyExists
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
@@ -181,7 +181,7 @@ func (s *AuthService) Refresh(refreshToken string) (model.TokenPair, error) {
 
 	user, err := s.userRepo.FindByID(ctx, claims.UserID)
 	if err != nil {
-		return model.TokenPair{}, apierror.New("UNAUTHORIZED", "user not found", "", http.StatusUnauthorized)
+		return model.TokenPair{}, model.ErrUnauthorized
 	}
 
 	pair, err := s.issueTokenPair(user)

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -32,7 +33,7 @@ func NewOperationsService(store storage.Storage, trash *TrashService, audit *Aud
 func (s *OperationsService) Rename(_ context.Context, oldPath string, newName string, actor model.AuditActor) (model.RenameResponse, error) {
 	if strings.TrimSpace(oldPath) == "" {
 		s.audit.Log("rename", actor, "failed", oldPath, map[string]any{"path": oldPath}, nil, "path is required")
-		return model.RenameResponse{}, apierror.New("BAD_REQUEST", "path is required", "path", http.StatusBadRequest)
+		return model.RenameResponse{}, fmt.Errorf("%w: path is required", model.ErrInvalidInput)
 	}
 
 	safeName, err := util.SanitizeFilename(newName, false)
@@ -50,7 +51,7 @@ func (s *OperationsService) Rename(_ context.Context, oldPath string, newName st
 	if _, err := os.Stat(sourceResolved); err != nil {
 		if os.IsNotExist(err) {
 			s.audit.Log("rename", actor, "failed", oldPath, map[string]any{"path": oldPath, "new_name": safeName}, nil, "path not found")
-			return model.RenameResponse{}, apierror.New("NOT_FOUND", "path not found", oldPath, http.StatusNotFound)
+			return model.RenameResponse{}, model.ErrFileNotFound
 		}
 		s.audit.Log("rename", actor, "failed", oldPath, map[string]any{"path": oldPath, "new_name": safeName}, nil, err.Error())
 		return model.RenameResponse{}, err
@@ -65,7 +66,7 @@ func (s *OperationsService) Rename(_ context.Context, oldPath string, newName st
 
 	if _, err := os.Stat(newResolved); err == nil {
 		s.audit.Log("rename", actor, "failed", oldPath, map[string]any{"path": oldPath, "new_name": safeName}, nil, "target path already exists")
-		return model.RenameResponse{}, apierror.New("ALREADY_EXISTS", "target path already exists", newAPIPath, http.StatusConflict)
+		return model.RenameResponse{}, model.ErrPathConflict
 	}
 
 	if err := s.store.Rename(oldPath, newAPIPath); err != nil {
@@ -92,7 +93,7 @@ func (s *OperationsService) Rename(_ context.Context, oldPath string, newName st
 func (s *OperationsService) Move(_ context.Context, sources []string, destination string, conflictPolicy string, actor model.AuditActor) (model.MoveResponse, error) {
 	if len(sources) == 0 {
 		s.audit.Log("move", actor, "failed", destination, map[string]any{"sources": sources, "destination": destination}, nil, "sources are required")
-		return model.MoveResponse{}, apierror.New("BAD_REQUEST", "sources are required", "sources", http.StatusBadRequest)
+		return model.MoveResponse{}, fmt.Errorf("%w: sources are required", model.ErrInvalidInput)
 	}
 
 	normalizedPolicy, err := normalizeConflictPolicy(conflictPolicy)

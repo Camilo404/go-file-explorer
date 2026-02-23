@@ -11,21 +11,25 @@ import (
 	"go-file-explorer/internal/websocket"
 )
 
+type Handlers struct {
+	Auth          *handler.AuthHandler
+	Directory     *handler.DirectoryHandler
+	File          *handler.FileHandler
+	Operations    *handler.OperationsHandler
+	Search        *handler.SearchHandler
+	Audit         *handler.AuditHandler
+	Jobs          *handler.JobsHandler
+	Docs          *handler.DocsHandler
+	User          *handler.UserHandler
+	Storage       *handler.StorageHandler
+	Share         *handler.ShareHandler
+	ChunkedUpload *handler.ChunkedUploadHandler
+}
+
 func New(
 	cfg *config.Config,
 	authMiddleware *middleware.AuthMiddleware,
-	authHandler *handler.AuthHandler,
-	directoryHandler *handler.DirectoryHandler,
-	fileHandler *handler.FileHandler,
-	operationsHandler *handler.OperationsHandler,
-	searchHandler *handler.SearchHandler,
-	auditHandler *handler.AuditHandler,
-	jobsHandler *handler.JobsHandler,
-	docsHandler *handler.DocsHandler,
-	userHandler *handler.UserHandler,
-	storageHandler *handler.StorageHandler,
-	shareHandler *handler.ShareHandler,
-	chunkedUploadHandler *handler.ChunkedUploadHandler,
+	h Handlers,
 	hub *websocket.Hub,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -41,8 +45,8 @@ func New(
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
-	r.Get("/openapi.yaml", docsHandler.OpenAPI)
-	r.Get("/swagger", docsHandler.SwaggerUI)
+	r.Get("/openapi.yaml", h.Docs.OpenAPI)
+	r.Get("/swagger", h.Docs.SwaggerUI)
 
 	r.Route("/api/v1", func(api chi.Router) {
 
@@ -52,15 +56,15 @@ func New(
 		// request support (HTTP 206) and keeps RAM flat for large files.
 		streaming := middleware.StreamingTimeout(cfg.TransferTimeout, cfg.TransferIdleTimeout)
 
-		api.With(streaming, authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/files/upload", fileHandler.Upload)
-		api.With(streaming, authMiddleware.RequireAuth).Get("/files/download", fileHandler.Download)
-		api.With(streaming, authMiddleware.RequireAuth).Get("/files/preview", fileHandler.Preview)
-		api.With(streaming, authMiddleware.RequireAuth).Get("/files/thumbnail", fileHandler.Thumbnail)
-		api.With(streaming, authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Get("/jobs/{job_id}/stream", jobsHandler.Stream)
-		api.With(streaming).Get("/public/shares/{token}", shareHandler.PublicDownload)
+		api.With(streaming, authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/files/upload", h.File.Upload)
+		api.With(streaming, authMiddleware.RequireAuth).Get("/files/download", h.File.Download)
+		api.With(streaming, authMiddleware.RequireAuth).Get("/files/preview", h.File.Preview)
+		api.With(streaming, authMiddleware.RequireAuth).Get("/files/thumbnail", h.File.Thumbnail)
+		api.With(streaming, authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Get("/jobs/{job_id}/stream", h.Jobs.Stream)
+		api.With(streaming).Get("/public/shares/{token}", h.Share.PublicDownload)
 
 		// Chunked uploads — chunk write uses streaming; init/complete/abort are lightweight JSON.
-		api.With(streaming, authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Put("/uploads/{upload_id}/chunks/{chunk_index}", chunkedUploadHandler.UploadChunk)
+		api.With(streaming, authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Put("/uploads/{upload_id}/chunks/{chunk_index}", h.ChunkedUpload.UploadChunk)
 
 		// WebSocket endpoint for real-time notifications
 		api.With(authMiddleware.RequireAuth).Get("/ws", func(w http.ResponseWriter, r *http.Request) {
@@ -74,54 +78,54 @@ func New(
 			std.Use(middleware.Timeout(cfg.RequestTimeout))
 
 			std.Route("/auth", func(auth chi.Router) {
-				auth.Post("/login", authHandler.Login)
-				auth.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("admin")).Post("/register", authHandler.Register)
-				auth.Post("/refresh", authHandler.Refresh)
-				auth.With(authMiddleware.RequireAuth).Post("/logout", authHandler.Logout)
-				auth.With(authMiddleware.RequireAuth).Get("/me", authHandler.Me)
-				auth.With(authMiddleware.RequireAuth).Put("/change-password", authHandler.ChangePassword)
+				auth.Post("/login", h.Auth.Login)
+				auth.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("admin")).Post("/register", h.Auth.Register)
+				auth.Post("/refresh", h.Auth.Refresh)
+				auth.With(authMiddleware.RequireAuth).Post("/logout", h.Auth.Logout)
+				auth.With(authMiddleware.RequireAuth).Get("/me", h.Auth.Me)
+				auth.With(authMiddleware.RequireAuth).Put("/change-password", h.Auth.ChangePassword)
 			})
 
 			std.Route("/users", func(users chi.Router) {
 				users.Use(authMiddleware.RequireAuth, authMiddleware.RequireRoles("admin"))
-				users.Get("/", userHandler.List)
-				users.Get("/{id}", userHandler.Get)
-				users.Put("/{id}", userHandler.Update)
-				users.Delete("/{id}", userHandler.Delete)
+				users.Get("/", h.User.List)
+				users.Get("/{id}", h.User.Get)
+				users.Put("/{id}", h.User.Update)
+				users.Delete("/{id}", h.User.Delete)
 			})
 
-			std.With(authMiddleware.RequireAuth).Get("/files", directoryHandler.List)
-			std.With(authMiddleware.RequireAuth).Get("/tree", directoryHandler.Tree)
-			std.With(authMiddleware.RequireAuth).Get("/files/info", fileHandler.Info)
-			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Put("/files/rename", operationsHandler.Rename)
-			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Put("/files/move", operationsHandler.Move)
-			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/files/copy", operationsHandler.Copy)
-			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/files/compress", operationsHandler.Compress)
-			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/files/decompress", operationsHandler.Decompress)
-			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Delete("/files", operationsHandler.Delete)
-			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/files/restore", operationsHandler.Restore)
-			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Get("/trash", operationsHandler.ListTrash)
-			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Delete("/trash/{id}", operationsHandler.PermanentDeleteTrash)
-			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Delete("/trash", operationsHandler.EmptyTrash)
-			std.With(authMiddleware.RequireAuth).Get("/search", searchHandler.Search)
-			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("admin")).Get("/audit", auditHandler.List)
-			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/jobs/operations", jobsHandler.CreateOperationJob)
-			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Get("/jobs/{job_id}", jobsHandler.GetJob)
-			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Get("/jobs/{job_id}/items", jobsHandler.GetJobItems)
-			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/directories", directoryHandler.Create)
-			std.With(authMiddleware.RequireAuth).Get("/storage/stats", storageHandler.Stats)
+			std.With(authMiddleware.RequireAuth).Get("/files", h.Directory.List)
+			std.With(authMiddleware.RequireAuth).Get("/tree", h.Directory.Tree)
+			std.With(authMiddleware.RequireAuth).Get("/files/info", h.File.Info)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Put("/files/rename", h.Operations.Rename)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Put("/files/move", h.Operations.Move)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/files/copy", h.Operations.Copy)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/files/compress", h.Operations.Compress)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/files/decompress", h.Operations.Decompress)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Delete("/files", h.Operations.Delete)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/files/restore", h.Operations.Restore)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Get("/trash", h.Operations.ListTrash)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Delete("/trash/{id}", h.Operations.PermanentDeleteTrash)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Delete("/trash", h.Operations.EmptyTrash)
+			std.With(authMiddleware.RequireAuth).Get("/search", h.Search.Search)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("admin")).Get("/audit", h.Audit.List)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/jobs/operations", h.Jobs.CreateOperationJob)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Get("/jobs/{job_id}", h.Jobs.GetJob)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Get("/jobs/{job_id}/items", h.Jobs.GetJobItems)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/directories", h.Directory.Create)
+			std.With(authMiddleware.RequireAuth).Get("/storage/stats", h.Storage.Stats)
 
 			std.Route("/shares", func(shares chi.Router) {
 				shares.Use(authMiddleware.RequireAuth)
-				shares.With(authMiddleware.RequireRoles("editor", "admin")).Post("/", shareHandler.Create)
-				shares.Get("/", shareHandler.List)
-				shares.With(authMiddleware.RequireRoles("editor", "admin")).Delete("/{id}", shareHandler.Revoke)
+				shares.With(authMiddleware.RequireRoles("editor", "admin")).Post("/", h.Share.Create)
+				shares.Get("/", h.Share.List)
+				shares.With(authMiddleware.RequireRoles("editor", "admin")).Delete("/{id}", h.Share.Revoke)
 			})
 
 			// Chunked uploads — JSON control endpoints.
-			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/uploads/init", chunkedUploadHandler.Init)
-			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/uploads/{upload_id}/complete", chunkedUploadHandler.Complete)
-			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Delete("/uploads/{upload_id}", chunkedUploadHandler.Abort)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/uploads/init", h.ChunkedUpload.Init)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Post("/uploads/{upload_id}/complete", h.ChunkedUpload.Complete)
+			std.With(authMiddleware.RequireAuth, authMiddleware.RequireRoles("editor", "admin")).Delete("/uploads/{upload_id}", h.ChunkedUpload.Abort)
 		})
 	})
 

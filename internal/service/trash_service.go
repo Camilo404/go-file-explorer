@@ -91,7 +91,7 @@ func (s *TrashService) RestoreLatest(apiPath string, actor model.AuditActor) (mo
 	}
 
 	if _, err := os.Stat(targetResolved); err == nil {
-		return model.TrashRecord{}, fmt.Errorf("target already exists")
+		return model.TrashRecord{}, fmt.Errorf("%w: target already exists", model.ErrPathConflict)
 	} else if !os.IsNotExist(err) {
 		return model.TrashRecord{}, err
 	}

@@ -4,14 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"go-file-explorer/internal/model"
-	"go-file-explorer/pkg/apierror"
 )
 
 type JobRepository struct {
@@ -98,7 +96,7 @@ func (r *JobRepository) FindByID(ctx context.Context, jobID string) (model.JobDa
 			&createdAt, &startedAt, &finishedAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return model.JobData{}, apierror.New("NOT_FOUND", "job not found", jobID, http.StatusNotFound)
+		return model.JobData{}, model.ErrJobNotFound
 	}
 	if err != nil {
 		return model.JobData{}, fmt.Errorf("find job: %w", err)

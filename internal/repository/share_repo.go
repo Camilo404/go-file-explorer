@@ -4,14 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"go-file-explorer/internal/model"
-	"go-file-explorer/pkg/apierror"
 )
 
 type ShareRepository struct {
@@ -66,7 +64,7 @@ func (r *ShareRepository) Revoke(ctx context.Context, shareID string, userID str
 		return fmt.Errorf("revoke share: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return apierror.New("NOT_FOUND", "share not found", shareID, http.StatusNotFound)
+		return model.ErrShareNotFound
 	}
 	return nil
 }
@@ -80,7 +78,7 @@ func (r *ShareRepository) ResolveToken(ctx context.Context, token string) (model
 		Scan(&s.ID, &s.Token, &s.Path, &s.CreatedBy, &createdAt, &expiresAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return model.ShareRecord{}, apierror.New("NOT_FOUND", "share not found", token, http.StatusNotFound)
+		return model.ShareRecord{}, model.ErrShareNotFound
 	}
 	if err != nil {
 		return model.ShareRecord{}, fmt.Errorf("resolve share token: %w", err)
@@ -90,7 +88,7 @@ func (r *ShareRepository) ResolveToken(ctx context.Context, token string) (model
 	s.ExpiresAt = expiresAt.Format(time.RFC3339Nano)
 
 	if time.Now().UTC().After(expiresAt) {
-		return model.ShareRecord{}, apierror.New("GONE", "share link has expired", token, http.StatusGone)
+		return model.ShareRecord{}, model.ErrShareExpired
 	}
 
 	return s, nil

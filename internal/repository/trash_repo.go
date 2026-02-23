@@ -49,7 +49,7 @@ func (r *TrashRepository) FindLatestByPath(ctx context.Context, originalPath str
 			&rec.DeletedBy.Role, &rec.DeletedBy.IP)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return model.TrashRecord{}, fmt.Errorf("trash record not found for path: %s", originalPath)
+		return model.TrashRecord{}, model.ErrTrashItemNotFound
 	}
 	if err != nil {
 		return model.TrashRecord{}, fmt.Errorf("find trash by path: %w", err)
@@ -71,7 +71,7 @@ func (r *TrashRepository) MarkRestored(ctx context.Context, id string, actor mod
 		return fmt.Errorf("mark restored: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("trash record not found or already restored: %s", id)
+		return model.ErrTrashItemNotFound
 	}
 	return nil
 }
@@ -139,7 +139,7 @@ func (r *TrashRepository) FindByID(ctx context.Context, id string) (model.TrashR
 			&rec.DeletedBy.Role, &rec.DeletedBy.IP)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return model.TrashRecord{}, fmt.Errorf("trash item not found: %s", id)
+		return model.TrashRecord{}, model.ErrTrashItemNotFound
 	}
 	if err != nil {
 		return model.TrashRecord{}, fmt.Errorf("find trash by id: %w", err)
@@ -154,7 +154,7 @@ func (r *TrashRepository) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("delete trash record: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("trash item not found: %s", id)
+		return model.ErrTrashItemNotFound
 	}
 	return nil
 }

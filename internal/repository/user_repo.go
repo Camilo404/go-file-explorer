@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"go-file-explorer/internal/model"
-	"go-file-explorer/pkg/apierror"
 )
 
 type UserRepository struct {
@@ -33,7 +31,7 @@ func (r *UserRepository) FindByID(ctx context.Context, id string) (model.User, e
 			&u.FailedLoginAttempts, &u.LockedUntil, &u.CreatedAt, &u.UpdatedAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return model.User{}, apierror.New("NOT_FOUND", "user not found", id, http.StatusNotFound)
+		return model.User{}, model.ErrUserNotFound
 	}
 	if err != nil {
 		return model.User{}, fmt.Errorf("find user by id: %w", err)
@@ -51,7 +49,7 @@ func (r *UserRepository) FindByUsername(ctx context.Context, username string) (m
 			&u.FailedLoginAttempts, &u.LockedUntil, &u.CreatedAt, &u.UpdatedAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return model.User{}, apierror.New("NOT_FOUND", "user not found", username, http.StatusNotFound)
+		return model.User{}, model.ErrUserNotFound
 	}
 	if err != nil {
 		return model.User{}, fmt.Errorf("find user by username: %w", err)
@@ -89,7 +87,7 @@ func (r *UserRepository) Update(ctx context.Context, u model.User) error {
 		return fmt.Errorf("update user: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return apierror.New("NOT_FOUND", "user not found", u.ID, http.StatusNotFound)
+		return model.ErrUserNotFound
 	}
 	return nil
 }
@@ -102,7 +100,7 @@ func (r *UserRepository) UpdatePassword(ctx context.Context, userID string, pass
 		return fmt.Errorf("update password: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return apierror.New("NOT_FOUND", "user not found", userID, http.StatusNotFound)
+		return model.ErrUserNotFound
 	}
 	return nil
 }
@@ -143,7 +141,7 @@ func (r *UserRepository) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("delete user: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return apierror.New("NOT_FOUND", "user not found", id, http.StatusNotFound)
+		return model.ErrUserNotFound
 	}
 	return nil
 }

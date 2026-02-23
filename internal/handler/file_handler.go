@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"mime"
+	"mime/multipart"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -52,22 +53,12 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if part.FormName() == "path" {
-			pathBytes, _ := io.ReadAll(part)
-			pathValue := strings.TrimSpace(string(pathBytes))
-			if pathValue != "" {
-				destination = pathValue
-			}
-			_ = part.Close()
+			destination = readStringPart(part, destination)
 			continue
 		}
 
 		if part.FormName() == "conflict_policy" {
-			policyBytes, _ := io.ReadAll(part)
-			policyValue := strings.TrimSpace(string(policyBytes))
-			if policyValue != "" {
-				conflictPolicy = policyValue
-			}
-			_ = part.Close()
+			conflictPolicy = readStringPart(part, conflictPolicy)
 			continue
 		}
 
@@ -93,6 +84,16 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeSuccess(w, http.StatusOK, result, nil)
+}
+
+func readStringPart(part *multipart.Part, defaultValue string) string {
+	valBytes, _ := io.ReadAll(part)
+	val := strings.TrimSpace(string(valBytes))
+	_ = part.Close()
+	if val != "" {
+		return val
+	}
+	return defaultValue
 }
 
 func isPayloadTooLarge(err error) bool {
