@@ -17,8 +17,6 @@ import (
 )
 
 func TestFileUploadDownloadAndPreview(t *testing.T) {
-	t.Parallel()
-
 	store, err := storage.New(t.TempDir())
 	require.NoError(t, err)
 
@@ -89,8 +87,6 @@ func TestFileUploadDownloadAndPreview(t *testing.T) {
 }
 
 func TestDirectoryDownloadAsZip(t *testing.T) {
-	t.Parallel()
-
 	store, err := storage.New(t.TempDir())
 	require.NoError(t, err)
 
@@ -123,8 +119,6 @@ func TestDirectoryDownloadAsZip(t *testing.T) {
 }
 
 func TestFileInfoEndpoint(t *testing.T) {
-	t.Parallel()
-
 	store, err := storage.New(t.TempDir())
 	require.NoError(t, err)
 

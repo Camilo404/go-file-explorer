@@ -14,8 +14,6 @@ import (
 )
 
 func TestAuthFlowAndProtectedEndpoints(t *testing.T) {
-	t.Parallel()
-
 	store, err := storage.New(t.TempDir())
 	require.NoError(t, err)
 
@@ -39,8 +37,6 @@ func TestAuthFlowAndProtectedEndpoints(t *testing.T) {
 }
 
 func TestAdminCanRegisterUser(t *testing.T) {
-	t.Parallel()
-
 	store, err := storage.New(t.TempDir())
 	require.NoError(t, err)
 
@@ -49,7 +45,7 @@ func TestAdminCanRegisterUser(t *testing.T) {
 
 	registerPayload, err := json.Marshal(map[string]string{
 		"username": "editor1",
-		"password": "password123",
+		"password": "Password123!",
 		"role":     "editor",
 	})
 	require.NoError(t, err)

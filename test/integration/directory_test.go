@@ -13,8 +13,6 @@ import (
 )
 
 func TestDirectoryCreateAndList(t *testing.T) {
-	t.Parallel()
-
 	store, err := storage.New(t.TempDir())
 	require.NoError(t, err)
 

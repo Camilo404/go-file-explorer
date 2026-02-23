@@ -13,8 +13,6 @@ import (
 )
 
 func TestSearchEndpointWithFilters(t *testing.T) {
-	t.Parallel()
-
 	store, err := storage.New(t.TempDir())
 	require.NoError(t, err)
 
@@ -70,8 +68,6 @@ func TestSearchEndpointWithFilters(t *testing.T) {
 }
 
 func TestSearchEndpointWithExtensionOnly(t *testing.T) {
-	t.Parallel()
-
 	store, err := storage.New(t.TempDir())
 	require.NoError(t, err)
 
@@ -118,8 +114,6 @@ func TestSearchEndpointWithExtensionOnly(t *testing.T) {
 }
 
 func TestSearchEndpointRequiresAtLeastOneFilter(t *testing.T) {
-	t.Parallel()
-
 	store, err := storage.New(t.TempDir())
 	require.NoError(t, err)
 

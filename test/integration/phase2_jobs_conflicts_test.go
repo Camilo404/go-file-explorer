@@ -18,8 +18,6 @@ import (
 )
 
 func TestUploadConflictPolicyRename(t *testing.T) {
-	t.Parallel()
-
 	store, err := storage.New(t.TempDir())
 	require.NoError(t, err)
 
@@ -66,8 +64,6 @@ func TestUploadConflictPolicyRename(t *testing.T) {
 }
 
 func TestMoveConflictPolicySkipAndOverwrite(t *testing.T) {
-	t.Parallel()
-
 	store, err := storage.New(t.TempDir())
 	require.NoError(t, err)
 
@@ -123,8 +119,6 @@ func TestMoveConflictPolicySkipAndOverwrite(t *testing.T) {
 }
 
 func TestAsyncJobOperationsLifecycle(t *testing.T) {
-	t.Parallel()
-
 	store, err := storage.New(t.TempDir())
 	require.NoError(t, err)
 

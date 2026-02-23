@@ -6,24 +6,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
-	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
-	"go-file-explorer/internal/config"
-	"go-file-explorer/internal/handler"
-	"go-file-explorer/internal/middleware"
-	"go-file-explorer/internal/router"
-	"go-file-explorer/internal/service"
 	"go-file-explorer/internal/storage"
 )
 
 func TestSecurityHeadersOnResponses(t *testing.T) {
-	t.Parallel()
-
 	store, err := storage.New(t.TempDir())
 	require.NoError(t, err)
 
@@ -44,58 +34,11 @@ func TestSecurityHeadersOnResponses(t *testing.T) {
 }
 
 func TestAuthRateLimitReturns429(t *testing.T) {
-	t.Parallel()
-
 	store, err := storage.New(t.TempDir())
 	require.NoError(t, err)
 
-	usersFile := filepath.Join(t.TempDir(), "users.json")
-	authService, err := service.NewAuthService(usersFile, "test-secret", 15*time.Minute, 24*time.Hour)
-	require.NoError(t, err)
-	authMiddleware := middleware.NewAuthMiddleware(authService)
-	authHandler := handler.NewAuthHandler(authService)
-
-	directoryService := service.NewDirectoryService(store)
-	directoryHandler := handler.NewDirectoryHandler(directoryService)
-	fileService := service.NewFileService(store, []string{}, "")
-	fileHandler := handler.NewFileHandler(fileService, 10*1024*1024)
-	trashRoot := filepath.Join(t.TempDir(), "trash")
-	trashIndexFile := filepath.Join(t.TempDir(), "trash-index.json")
-	auditLogFile := filepath.Join(t.TempDir(), "audit.log")
-	trashService, err := service.NewTrashService(store, trashRoot, trashIndexFile)
-	require.NoError(t, err)
-	auditService, err := service.NewAuditService(auditLogFile)
-	require.NoError(t, err)
-	auditHandler := handler.NewAuditHandler(auditService)
-	docsHandler := handler.NewDocsHandler(filepath.Join("..", "..", "docs", "openapi.yaml"))
-	operationsService := service.NewOperationsService(store, trashService, auditService)
-	operationsHandler := handler.NewOperationsHandler(operationsService)
-	jobService := service.NewJobService(operationsService)
-	jobsHandler := handler.NewJobsHandler(jobService)
-	searchService := service.NewSearchService(store, 10, 30*time.Second)
-	searchHandler := handler.NewSearchHandler(searchService)
-
-	cfg := &config.Config{
-		ServerPort:         "8080",
-		ServerReadTimeout:  15 * time.Second,
-		ServerWriteTimeout: 30 * time.Second,
-		ServerIdleTimeout:  120 * time.Second,
-		StorageRoot:        store.RootAbs(),
-		JWTSecret:          "test-secret",
-		JWTAccessTTL:       15 * time.Minute,
-		JWTRefreshTTL:      24 * time.Hour,
-		UsersFile:          usersFile,
-		CORSOrigins:        []string{"*"},
-		AuthRateLimitRPM:   2,
-		MaxUploadSize:      10 * 1024 * 1024,
-		SearchMaxDepth:     10,
-		SearchTimeout:      30 * time.Second,
-		TrashRoot:          trashRoot,
-		TrashIndexFile:     trashIndexFile,
-		AuditLogFile:       auditLogFile,
-	}
-
-	server := httptest.NewServer(router.New(cfg, authMiddleware, authHandler, directoryHandler, fileHandler, operationsHandler, searchHandler, auditHandler, jobsHandler, docsHandler))
+	// Set rate limit to 2 RPM
+	server := newTestServer(t, store, 2)
 	t.Cleanup(server.Close)
 
 	loginPayload, err := json.Marshal(map[string]string{"username": "admin", "password": "admin123"})

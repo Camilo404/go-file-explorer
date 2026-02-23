@@ -13,8 +13,6 @@ import (
 )
 
 func TestOperationsRenameMoveCopyDelete(t *testing.T) {
-	t.Parallel()
-
 	store, err := storage.New(t.TempDir())
 	require.NoError(t, err)
 
@@ -73,8 +71,6 @@ func TestOperationsRenameMoveCopyDelete(t *testing.T) {
 }
 
 func TestOperationsSoftDeleteAndRestore(t *testing.T) {
-	t.Parallel()
-
 	store, err := storage.New(t.TempDir())
 	require.NoError(t, err)
 
