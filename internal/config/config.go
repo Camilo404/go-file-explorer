@@ -25,7 +25,6 @@ type Config struct {
 	JWTAccessTTL            time.Duration
 	JWTRefreshTTL           time.Duration
 	CORSOrigins             []string
-	RateLimitRPM            int
 	AuthRateLimitRPM        int
 	SearchMaxDepth          int
 	SearchTimeout           time.Duration
@@ -61,7 +60,6 @@ func Load() (*Config, error) {
 		JWTAccessTTL:            getDuration("JWT_ACCESS_TTL", 15*time.Minute),
 		JWTRefreshTTL:           getDuration("JWT_REFRESH_TTL", 168*time.Hour),
 		CORSOrigins:             splitCSV(getEnv("CORS_ORIGINS", "*")),
-		RateLimitRPM:            getInt("RATE_LIMIT_RPM", 0),
 		AuthRateLimitRPM:        getInt("AUTH_RATE_LIMIT_RPM", 60),
 		SearchMaxDepth:          getInt("SEARCH_MAX_DEPTH", 10),
 		SearchTimeout:           getDuration("SEARCH_TIMEOUT", 30*time.Second),

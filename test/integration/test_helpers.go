@@ -64,7 +64,6 @@ func newAuthedServer(t *testing.T, store *storage.Storage) (*httptest.Server, st
 		JWTRefreshTTL:      24 * time.Hour,
 		UsersFile:          usersFile,
 		CORSOrigins:        []string{"*"},
-		RateLimitRPM:       1000,
 		AuthRateLimitRPM:   1000,
 		MaxUploadSize:      10 * 1024 * 1024,
 		SearchMaxDepth:     10,

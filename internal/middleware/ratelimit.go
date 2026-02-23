@@ -14,34 +14,31 @@ import (
 )
 
 type clientLimiter struct {
-	general  *rate.Limiter
 	auth     *rate.Limiter
 	lastSeen time.Time
 }
 
 type RateLimitMiddleware struct {
-	generalRPM int
-	authRPM    int
-	mu         sync.Mutex
-	clients    map[string]*clientLimiter
+	authRPM int
+	mu      sync.Mutex
+	clients map[string]*clientLimiter
 }
 
-func NewRateLimitMiddleware(generalRPM int, authRPM int) *RateLimitMiddleware {
-	// generalRPM <= 0 means unlimited
+func NewRateLimitMiddleware(authRPM int) *RateLimitMiddleware {
 	if authRPM <= 0 {
 		authRPM = 10
 	}
 
 	return &RateLimitMiddleware{
-		generalRPM: generalRPM,
-		authRPM:    authRPM,
-		clients:    map[string]*clientLimiter{},
+		authRPM: authRPM,
+		clients: map[string]*clientLimiter{},
 	}
 }
 
 func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(strings.ToLower(r.URL.Path), "/api/v1/files/thumbnail") {
+		// Only apply rate limiting to auth routes
+		if !strings.HasPrefix(strings.ToLower(r.URL.Path), "/api/v1/auth") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -49,12 +46,7 @@ func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 		clientIP := extractClientIP(r)
 		limiter := m.getLimiter(clientIP)
 
-		target := limiter.general
-		if strings.HasPrefix(strings.ToLower(r.URL.Path), "/api/v1/auth") {
-			target = limiter.auth
-		}
-
-		if !target.Allow() {
+		if !limiter.auth.Allow() {
 			w.Header().Set("Retry-After", "60")
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
@@ -82,14 +74,8 @@ func (m *RateLimitMiddleware) getLimiter(clientIP string) *clientLimiter {
 		return limiter
 	}
 
-	var general *rate.Limiter
-	if m.generalRPM <= 0 {
-		general = rate.NewLimiter(rate.Inf, 0)
-	} else {
-		general = rate.NewLimiter(rate.Every(time.Minute/time.Duration(m.generalRPM)), m.generalRPM)
-	}
 	auth := rate.NewLimiter(rate.Every(time.Minute/time.Duration(m.authRPM)), m.authRPM)
-	created := &clientLimiter{general: general, auth: auth, lastSeen: time.Now()}
+	created := &clientLimiter{auth: auth, lastSeen: time.Now()}
 	m.clients[clientIP] = created
 	m.gcLocked()
 

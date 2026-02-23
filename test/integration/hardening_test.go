@@ -86,7 +86,6 @@ func TestAuthRateLimitReturns429(t *testing.T) {
 		JWTRefreshTTL:      24 * time.Hour,
 		UsersFile:          usersFile,
 		CORSOrigins:        []string{"*"},
-		RateLimitRPM:       100,
 		AuthRateLimitRPM:   2,
 		MaxUploadSize:      10 * 1024 * 1024,
 		SearchMaxDepth:     10,

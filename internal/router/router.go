@@ -29,7 +29,7 @@ func New(
 	hub *websocket.Hub,
 ) http.Handler {
 	r := chi.NewRouter()
-	rateLimitMiddleware := middleware.NewRateLimitMiddleware(cfg.RateLimitRPM, cfg.AuthRateLimitRPM)
+	rateLimitMiddleware := middleware.NewRateLimitMiddleware(cfg.AuthRateLimitRPM)
 
 	r.Use(middleware.Recovery)
 	r.Use(middleware.Logging)

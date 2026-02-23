@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRateLimitMiddleware_UnlimitedGeneral(t *testing.T) {
-	// Setup middleware with generalRPM = 0 (unlimited) and authRPM = 1
-	mw := NewRateLimitMiddleware(0, 1)
+func TestRateLimitMiddleware_NoLimitNonAuth(t *testing.T) {
+	// Setup middleware with strict auth limit (1 RPM)
+	mw := NewRateLimitMiddleware(1)
 
 	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -31,8 +31,8 @@ func TestRateLimitMiddleware_UnlimitedGeneral(t *testing.T) {
 }
 
 func TestRateLimitMiddleware_LimitedAuth(t *testing.T) {
-	// Setup middleware with generalRPM = 0 (unlimited) and authRPM = 1
-	mw := NewRateLimitMiddleware(0, 1)
+	// Setup middleware with authRPM = 1
+	mw := NewRateLimitMiddleware(1)
 
 	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -60,7 +60,6 @@ func TestRateLimitMiddleware_LimitedAuth(t *testing.T) {
 }
 
 func TestRateLimitMiddleware_Configuration(t *testing.T) {
-	mw := NewRateLimitMiddleware(-1, 0)
-	assert.Equal(t, -1, mw.generalRPM)
+	mw := NewRateLimitMiddleware(0)
 	assert.Equal(t, 10, mw.authRPM) // Default fallback for auth
 }
