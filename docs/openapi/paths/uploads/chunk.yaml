@@ -1,0 +1,35 @@
+put:
+  tags: [Uploads]
+  summary: Subir un chunk
+  description: "Rol requerido: editor/admin. Sube una parte del archivo."
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: path
+      name: upload_id
+      required: true
+      schema: { type: string }
+    - in: path
+      name: chunk_index
+      required: true
+      schema: { type: integer }
+  requestBody:
+    required: true
+    content:
+      application/octet-stream:
+        schema:
+          type: string
+          format: binary
+  responses:
+    '200':
+      description: Chunk recibido
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/ChunkedUploadChunkResponse'
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'

@@ -1,0 +1,43 @@
+post:
+  tags: [Shares]
+  summary: Crear enlace de compartición
+  description: "Rol requerido: editor/admin. Genera un enlace público temporal para compartir un archivo o directorio."
+  security:
+    - BearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas.yaml#/CreateShareRequest'
+  responses:
+    '201':
+      description: Enlace de compartición creado
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/ShareRecordResponse'
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'
+    '404':
+      $ref: '../../components/responses.yaml#/NotFoundError'
+
+get:
+  tags: [Shares]
+  summary: Listar enlaces de compartición del usuario
+  description: "Rol requerido: viewer/editor/admin. Devuelve los enlaces activos (no expirados) creados por el usuario autenticado."
+  security:
+    - BearerAuth: []
+  responses:
+    '200':
+      description: Lista de shares activos
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/ShareListResponse'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'

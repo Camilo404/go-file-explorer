@@ -1,0 +1,715 @@
+ChunkedUploadInitRequest:
+  type: object
+  properties:
+    file_name: { type: string }
+    file_size: { type: integer, format: int64 }
+    chunk_size: { type: integer, format: int64 }
+    destination: { type: string }
+    conflict_policy: { type: string, enum: [overwrite, rename, skip], default: rename }
+  required: [file_name, file_size, chunk_size, destination]
+
+ChunkedUploadInitResponse:
+  type: object
+  properties:
+    upload_id: { type: string }
+    chunk_size: { type: integer, format: int64 }
+    total_chunks: { type: integer }
+  required: [upload_id, chunk_size, total_chunks]
+
+ChunkedUploadChunkResponse:
+  type: object
+  properties:
+    upload_id: { type: string }
+    chunk_index: { type: integer }
+    chunks_received: { type: integer }
+  required: [upload_id, chunk_index, chunks_received]
+
+ChunkedUploadCompleteResponse:
+  type: object
+  properties:
+    file: { $ref: './schemas.yaml#/UploadItem' }
+  required: [file]
+
+CompressRequest:
+  type: object
+  properties:
+    sources:
+      type: array
+      items: { type: string }
+    destination: { type: string }
+    name: { type: string }
+  required: [sources, destination, name]
+
+CompressResponse:
+  type: object
+  properties:
+    path: { type: string }
+    size: { type: integer, format: int64 }
+  required: [path, size]
+
+DecompressRequest:
+  type: object
+  properties:
+    source: { type: string }
+    destination: { type: string }
+    conflict_policy: { type: string, enum: [overwrite, rename, skip], default: rename }
+  required: [source, destination]
+
+DecompressResponse:
+  type: object
+  properties:
+    destination: { type: string }
+    files:
+      type: array
+      items: { type: string }
+    conflicts:
+      type: array
+      items: { type: string }
+  required: [destination, files]
+
+APIError:
+  type: object
+  properties:
+    code: { type: string }
+    message: { type: string }
+    details: { type: string }
+  required: [code, message]
+
+Meta:
+  type: object
+  properties:
+    page: { type: integer }
+    limit: { type: integer }
+    total: { type: integer }
+    total_pages: { type: integer }
+  required: [page, limit, total, total_pages]
+
+ErrorEnvelope:
+  type: object
+  properties:
+    success: { type: boolean, enum: [false] }
+    error: { $ref: './schemas.yaml#/APIError' }
+  required: [success, error]
+
+AuthUser:
+  type: object
+  properties:
+    id: { type: string }
+    username: { type: string }
+    role: { type: string, enum: [viewer, editor, admin] }
+  required: [id, username, role]
+
+TokenPair:
+  type: object
+  properties:
+    access_token: { type: string }
+    refresh_token: { type: string }
+    token_type: { type: string, example: Bearer }
+    expires_in: { type: integer }
+    user: { $ref: './schemas.yaml#/AuthUser' }
+  required: [access_token, refresh_token, token_type, expires_in, user]
+
+TokenPairResponse:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/TokenPair' }
+  required: [success, data]
+
+AuthUserResponse:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/AuthUser' }
+  required: [success, data]
+
+BooleanActionResponse:
+  type: object
+  description: Respuesta genérica con un campo booleano de acción
+  properties:
+    success: { type: boolean, enum: [true] }
+    data:
+      type: object
+      properties:
+        logged_out: { type: boolean }
+        changed: { type: boolean }
+  required: [success, data]
+
+LoginRequest:
+  type: object
+  properties:
+    username: { type: string }
+    password: { type: string }
+  required: [username, password]
+
+RegisterRequest:
+  type: object
+  properties:
+    username: { type: string }
+    password: { type: string }
+    role: { type: string, enum: [viewer, editor, admin] }
+  required: [username, password]
+
+RefreshRequest:
+  type: object
+  properties:
+    refresh_token: { type: string }
+  required: [refresh_token]
+
+FileItem:
+  type: object
+  properties:
+    name: { type: string }
+    path: { type: string }
+    type: { type: string, enum: [file, directory] }
+    size: { type: integer, format: int64 }
+    size_human: { type: string }
+    mime_type: { type: string }
+    extension: { type: string }
+    preview_url: { type: string }
+    thumbnail_url: { type: string }
+    is_image: { type: boolean }
+    is_video: { type: boolean }
+    modified_at: { type: string, format: date-time }
+    created_at: { type: string, format: date-time }
+    match_context: { type: string }
+    permissions: { type: string }
+    item_count: { type: integer }
+  required: [name, path, type, size, modified_at, created_at, permissions]
+
+DirectoryListData:
+  type: object
+  properties:
+    current_path: { type: string }
+    parent_path: { type: string }
+    items:
+      type: array
+      items: { $ref: './schemas.yaml#/FileItem' }
+  required: [current_path, parent_path, items]
+
+DirectoryListResponse:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/DirectoryListData' }
+    meta: { $ref: './schemas.yaml#/Meta' }
+  required: [success, data, meta]
+
+TreeNode:
+  type: object
+  properties:
+    name: { type: string }
+    path: { type: string }
+    type: { type: string, enum: [file, directory] }
+    has_children: { type: boolean }
+    item_count: { type: integer }
+    modified_at: { type: string, format: date-time }
+    children:
+      type: array
+      items: { $ref: './schemas.yaml#/TreeNode' }
+  required: [name, path, type, has_children, modified_at]
+
+TreeData:
+  type: object
+  properties:
+    path: { type: string }
+    nodes:
+      type: array
+      items: { $ref: './schemas.yaml#/TreeNode' }
+  required: [path, nodes]
+
+TreeResponse:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/TreeData' }
+    meta: { $ref: './schemas.yaml#/Meta' }
+  required: [success, data, meta]
+
+CreateDirectoryRequest:
+  type: object
+  properties:
+    path: { type: string }
+    name: { type: string }
+  required: [name]
+
+DirectoryCreateData:
+  type: object
+  properties:
+    name: { type: string }
+    path: { type: string }
+    type: { type: string, example: directory }
+    created_at: { type: string, format: date-time }
+  required: [name, path, type, created_at]
+
+DirectoryCreateResponse:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/DirectoryCreateData' }
+  required: [success, data]
+
+UploadItem:
+  type: object
+  properties:
+    name: { type: string }
+    path: { type: string }
+    size: { type: integer, format: int64 }
+    mime_type: { type: string }
+  required: [name, path, size, mime_type]
+
+UploadFailure:
+  type: object
+  properties:
+    name: { type: string }
+    reason: { type: string }
+  required: [name, reason]
+
+UploadResponseData:
+  type: object
+  properties:
+    uploaded:
+      type: array
+      items: { $ref: './schemas.yaml#/UploadItem' }
+    failed:
+      type: array
+      items: { $ref: './schemas.yaml#/UploadFailure' }
+  required: [uploaded, failed]
+
+UploadResponseEnvelope:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/UploadResponseData' }
+  required: [success, data]
+
+RenameRequest:
+  type: object
+  properties:
+    path: { type: string }
+    new_name: { type: string }
+  required: [path, new_name]
+
+RenameResponse:
+  type: object
+  properties:
+    old_path: { type: string }
+    new_path: { type: string }
+    name: { type: string }
+  required: [old_path, new_path, name]
+
+RenameResponseEnvelope:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/RenameResponse' }
+  required: [success, data]
+
+MoveRequest:
+  type: object
+  properties:
+    sources:
+      type: array
+      items: { type: string }
+    destination: { type: string }
+    conflict_policy: { type: string, enum: [overwrite, rename, skip], default: rename }
+  required: [sources, destination]
+
+MoveCopyResult:
+  type: object
+  properties:
+    from: { type: string }
+    to: { type: string }
+  required: [from, to]
+
+MoveCopyFailure:
+  type: object
+  properties:
+    from: { type: string }
+    reason: { type: string }
+  required: [from, reason]
+
+MoveResponseData:
+  type: object
+  properties:
+    moved:
+      type: array
+      items: { $ref: './schemas.yaml#/MoveCopyResult' }
+    failed:
+      type: array
+      items: { $ref: './schemas.yaml#/MoveCopyFailure' }
+  required: [moved, failed]
+
+MoveResponseEnvelope:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/MoveResponseData' }
+  required: [success, data]
+
+CopyResponseData:
+  type: object
+  properties:
+    copied:
+      type: array
+      items: { $ref: './schemas.yaml#/MoveCopyResult' }
+    failed:
+      type: array
+      items: { $ref: './schemas.yaml#/MoveCopyFailure' }
+  required: [copied, failed]
+
+CopyResponseEnvelope:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/CopyResponseData' }
+  required: [success, data]
+
+DeleteRequest:
+  type: object
+  properties:
+    paths:
+      type: array
+      items: { type: string }
+  required: [paths]
+
+DeleteFailure:
+  type: object
+  properties:
+    path: { type: string }
+    reason: { type: string }
+  required: [path, reason]
+
+DeleteResponseData:
+  type: object
+  properties:
+    deleted:
+      type: array
+      items: { type: string }
+    failed:
+      type: array
+      items: { $ref: './schemas.yaml#/DeleteFailure' }
+  required: [deleted, failed]
+
+DeleteResponseEnvelope:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/DeleteResponseData' }
+  required: [success, data]
+
+RestoreRequest:
+  type: object
+  properties:
+    paths:
+      type: array
+      items: { type: string }
+  required: [paths]
+
+RestoreFailure:
+  type: object
+  properties:
+    path: { type: string }
+    reason: { type: string }
+  required: [path, reason]
+
+RestoreResponseData:
+  type: object
+  properties:
+    restored:
+      type: array
+      items: { type: string }
+    failed:
+      type: array
+      items: { $ref: './schemas.yaml#/RestoreFailure' }
+  required: [restored, failed]
+
+RestoreResponseEnvelope:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/RestoreResponseData' }
+  required: [success, data]
+
+SearchData:
+  type: object
+  properties:
+    query: { type: string }
+    items:
+      type: array
+      items: { $ref: './schemas.yaml#/FileItem' }
+  required: [query, items]
+
+SearchResponse:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/SearchData' }
+    meta: { $ref: './schemas.yaml#/Meta' }
+  required: [success, data, meta]
+
+AuditActor:
+  type: object
+  properties:
+    user_id: { type: string }
+    username: { type: string }
+    role: { type: string }
+    ip: { type: string }
+
+AuditEntry:
+  type: object
+  properties:
+    action: { type: string }
+    occurred_at: { type: string, format: date-time }
+    actor: { $ref: './schemas.yaml#/AuditActor' }
+    status: { type: string }
+    resource: { type: string }
+    before: {}
+    after: {}
+    error: { type: string }
+  required: [action, occurred_at, actor, status]
+
+AuditData:
+  type: object
+  properties:
+    items:
+      type: array
+      items: { $ref: './schemas.yaml#/AuditEntry' }
+  required: [items]
+
+AuditResponse:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/AuditData' }
+    meta: { $ref: './schemas.yaml#/Meta' }
+  required: [success, data, meta]
+
+JobOperationRequest:
+  type: object
+  properties:
+    operation: { type: string, enum: [copy, move, delete] }
+    sources:
+      type: array
+      items: { type: string }
+    destination: { type: string }
+    paths:
+      type: array
+      items: { type: string }
+    conflict_policy: { type: string, enum: [overwrite, rename, skip], default: rename }
+  required: [operation]
+
+JobItemResult:
+  type: object
+  properties:
+    from: { type: string }
+    to: { type: string }
+    path: { type: string }
+    status: { type: string, enum: [success, failed, skipped] }
+    reason: { type: string }
+  required: [status]
+
+JobData:
+  type: object
+  properties:
+    job_id: { type: string }
+    operation: { type: string }
+    status: { type: string, enum: [queued, running, completed, partial, failed] }
+    conflict_policy: { type: string }
+    total_items: { type: integer }
+    processed_items: { type: integer }
+    success_items: { type: integer }
+    failed_items: { type: integer }
+    progress: { type: integer, minimum: 0, maximum: 100 }
+    created_at: { type: string, format: date-time }
+    started_at: { type: string, format: date-time }
+    finished_at: { type: string, format: date-time }
+  required:
+    - job_id
+    - operation
+    - status
+    - total_items
+    - processed_items
+    - success_items
+    - failed_items
+    - progress
+    - created_at
+
+JobResponse:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/JobData' }
+  required: [success, data]
+
+JobItemsData:
+  type: object
+  properties:
+    job_id: { type: string }
+    items:
+      type: array
+      items: { $ref: './schemas.yaml#/JobItemResult' }
+  required: [job_id, items]
+
+JobItemsResponse:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/JobItemsData' }
+    meta: { $ref: './schemas.yaml#/Meta' }
+  required: [success, data, meta]
+
+ChangePasswordRequest:
+  type: object
+  properties:
+    current_password: { type: string }
+    new_password: { type: string }
+  required: [current_password, new_password]
+
+UpdateUserRequest:
+  type: object
+  properties:
+    role: { type: string, enum: [viewer, editor, admin] }
+  required: [role]
+
+UserListData:
+  type: object
+  properties:
+    users:
+      type: array
+      items: { $ref: './schemas.yaml#/AuthUser' }
+  required: [users]
+
+UserListResponse:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/UserListData' }
+  required: [success, data]
+
+DeletedActionResponse:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data:
+      type: object
+      properties:
+        deleted: { type: boolean }
+  required: [success, data]
+
+EmptyTrashData:
+  type: object
+  properties:
+    deleted_count: { type: integer }
+  required: [deleted_count]
+
+EmptyTrashResponse:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/EmptyTrashData' }
+  required: [success, data]
+
+TrashRecord:
+  type: object
+  properties:
+    id: { type: string }
+    original_path: { type: string }
+    trash_name: { type: string }
+    deleted_at: { type: string, format: date-time }
+    deleted_by: { $ref: './schemas.yaml#/AuditActor' }
+    restored_at: { type: string, format: date-time }
+    restored_by: { $ref: './schemas.yaml#/AuditActor' }
+  required: [id, original_path, trash_name, deleted_at, deleted_by]
+
+TrashListResponse:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: './schemas.yaml#/TrashRecord' }
+      required: [items]
+  required: [success, data]
+
+StorageStats:
+  type: object
+  properties:
+    total_size: { type: integer, format: int64 }
+    total_size_human: { type: string }
+    file_count: { type: integer }
+    directory_count: { type: integer }
+  required: [total_size, total_size_human, file_count, directory_count]
+
+StorageStatsResponse:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/StorageStats' }
+  required: [success, data]
+
+JobUpdate:
+  type: object
+  description: Evento SSE de progreso de job
+  properties:
+    job_id: { type: string }
+    status: { type: string, enum: [queued, running, completed, partial, failed] }
+    progress: { type: integer, minimum: 0, maximum: 100 }
+    processed_items: { type: integer }
+    total_items: { type: integer }
+    success_items: { type: integer }
+    failed_items: { type: integer }
+  required: [job_id, status, progress, processed_items, total_items, success_items, failed_items]
+
+CreateShareRequest:
+  type: object
+  properties:
+    path: { type: string }
+    expires_in: { type: string, description: "Duración en formato Go (ej: 24h, 72h, 168h). Por defecto 24h.", example: "72h" }
+  required: [path]
+
+ShareRecord:
+  type: object
+  properties:
+    id: { type: string }
+    token: { type: string }
+    path: { type: string }
+    created_by: { type: string }
+    created_at: { type: string, format: date-time }
+    expires_at: { type: string, format: date-time }
+  required: [id, token, path, created_by, created_at, expires_at]
+
+ShareRecordResponse:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/ShareRecord' }
+  required: [success, data]
+
+ShareListData:
+  type: object
+  properties:
+    shares:
+      type: array
+      items: { $ref: './schemas.yaml#/ShareRecord' }
+  required: [shares]
+
+ShareListResponse:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data: { $ref: './schemas.yaml#/ShareListData' }
+  required: [success, data]
+
+RevokedActionResponse:
+  type: object
+  properties:
+    success: { type: boolean, enum: [true] }
+    data:
+      type: object
+      properties:
+        revoked: { type: boolean }
+  required: [success, data]

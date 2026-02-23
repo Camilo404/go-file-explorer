@@ -1,0 +1,24 @@
+delete:
+  tags: [Shares]
+  summary: Revocar enlace de compartición
+  description: "Rol requerido: editor/admin. Elimina un enlace de compartición creado por el usuario."
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: path
+      name: id
+      required: true
+      schema: { type: string }
+  responses:
+    '200':
+      description: Enlace revocado
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/RevokedActionResponse'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'
+    '404':
+      $ref: '../../components/responses.yaml#/NotFoundError'

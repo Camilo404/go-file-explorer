@@ -1,0 +1,25 @@
+post:
+  tags: [Uploads]
+  summary: Iniciar carga por chunks
+  description: "Rol requerido: editor/admin. Inicializa una sesión de carga por partes."
+  security:
+    - BearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas.yaml#/ChunkedUploadInitRequest'
+  responses:
+    '201':
+      description: Sesión de carga iniciada
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/ChunkedUploadInitResponse'
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'

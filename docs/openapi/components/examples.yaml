@@ -1,0 +1,48 @@
+BadRequest:
+  value:
+    success: false
+    error:
+      code: BAD_REQUEST
+      message: invalid JSON body
+Unauthorized:
+  value:
+    success: false
+    error:
+      code: UNAUTHORIZED
+      message: invalid or expired token
+Forbidden:
+  value:
+    success: false
+    error:
+      code: FORBIDDEN
+      message: insufficient permissions
+NotFound:
+  value:
+    success: false
+    error:
+      code: NOT_FOUND
+      message: path not found
+AlreadyExists:
+  value:
+    success: false
+    error:
+      code: ALREADY_EXISTS
+      message: target path already exists
+PayloadTooLarge:
+  value:
+    success: false
+    error:
+      code: PAYLOAD_TOO_LARGE
+      message: request body too large
+UnsupportedType:
+  value:
+    success: false
+    error:
+      code: UNSUPPORTED_TYPE
+      message: file MIME type is not allowed
+RateLimited:
+  value:
+    success: false
+    error:
+      code: RATE_LIMITED
+      message: Too many requests

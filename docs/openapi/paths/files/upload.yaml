@@ -1,0 +1,45 @@
+post:
+  tags: [Files]
+  summary: Subir archivos
+  description: "Rol requerido: editor/admin"
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: query
+      name: conflict_policy
+      schema: { type: string, enum: [overwrite, rename, skip], default: rename }
+  requestBody:
+    required: true
+    content:
+      multipart/form-data:
+        schema:
+          type: object
+          properties:
+            path:
+              type: string
+              example: /uploads
+            conflict_policy:
+              type: string
+              enum: [overwrite, rename, skip]
+            files:
+              type: array
+              items:
+                type: string
+                format: binary
+  responses:
+    '200':
+      description: Resultado de uploads
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/UploadResponseEnvelope'
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'
+    '413':
+      $ref: '../../components/responses.yaml#/PayloadTooLargeError'
+    '415':
+      $ref: '../../components/responses.yaml#/UnsupportedTypeError'

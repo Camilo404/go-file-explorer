@@ -1,0 +1,35 @@
+get:
+  tags: [Explorer]
+  summary: Árbol de directorios (lazy load)
+  description: "Rol requerido: viewer/editor/admin"
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: query
+      name: path
+      schema: { type: string, default: / }
+    - in: query
+      name: depth
+      schema: { type: integer, minimum: 1, maximum: 3, default: 1 }
+    - in: query
+      name: include_files
+      schema: { type: boolean, default: false }
+    - in: query
+      name: page
+      schema: { type: integer, minimum: 1, default: 1 }
+    - in: query
+      name: limit
+      schema: { type: integer, minimum: 1, maximum: 500, default: 200 }
+  responses:
+    '200':
+      description: Nodos del árbol
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/TreeResponse'
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '404':
+      $ref: '../../components/responses.yaml#/NotFoundError'

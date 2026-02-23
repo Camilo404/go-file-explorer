@@ -1,0 +1,33 @@
+get:
+  tags: [Shares]
+  summary: Descargar recurso compartido (público)
+  description: |
+    No requiere autenticación. Descarga el archivo o directorio (como ZIP) asociado al token de compartición.
+    Devuelve 410 Gone si el enlace ha expirado.
+  parameters:
+    - in: path
+      name: token
+      required: true
+      schema: { type: string }
+  responses:
+    '200':
+      description: Archivo o ZIP descargado
+      content:
+        application/octet-stream:
+          schema:
+            type: string
+            format: binary
+        application/zip:
+          schema:
+            type: string
+            format: binary
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '404':
+      $ref: '../../components/responses.yaml#/NotFoundError'
+    '410':
+      description: Enlace expirado
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/ErrorEnvelope'

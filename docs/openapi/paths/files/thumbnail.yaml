@@ -1,0 +1,32 @@
+get:
+  tags: [Files]
+  summary: Obtener thumbnail JPEG
+  description: "Rol requerido: viewer/editor/admin"
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: query
+      name: path
+      required: true
+      schema: { type: string }
+    - in: query
+      name: size
+      schema: { type: integer, minimum: 32, maximum: 2048, default: 256 }
+  responses:
+    '200':
+      description: Thumbnail JPEG
+      content:
+        image/jpeg:
+          schema:
+            type: string
+            format: binary
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '404':
+      $ref: '../../components/responses.yaml#/NotFoundError'
+    '204':
+      description: Tipo de archivo no soportado para thumbnail
+    '415':
+      $ref: '../../components/responses.yaml#/UnsupportedTypeError'

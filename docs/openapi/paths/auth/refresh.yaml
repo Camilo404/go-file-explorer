@@ -1,0 +1,20 @@
+post:
+  tags: [Auth]
+  summary: Refrescar tokens
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas.yaml#/RefreshRequest'
+  responses:
+    '200':
+      description: Nuevo par de tokens
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/TokenPairResponse'
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'

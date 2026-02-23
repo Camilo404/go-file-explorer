@@ -1,0 +1,49 @@
+BadRequestError:
+  description: Solicitud inválida
+  content:
+    application/json:
+      schema: { $ref: './schemas.yaml#/ErrorEnvelope' }
+      examples:
+        invalidBody: { $ref: './examples.yaml#/BadRequest' }
+UnauthorizedError:
+  description: Token inválido o ausente
+  content:
+    application/json:
+      schema: { $ref: './schemas.yaml#/ErrorEnvelope' }
+      examples:
+        unauthorized: { $ref: './examples.yaml#/Unauthorized' }
+ForbiddenError:
+  description: Rol insuficiente
+  content:
+    application/json:
+      schema: { $ref: './schemas.yaml#/ErrorEnvelope' }
+      examples:
+        forbidden: { $ref: './examples.yaml#/Forbidden' }
+NotFoundError:
+  description: Recurso no encontrado
+  content:
+    application/json:
+      schema: { $ref: './schemas.yaml#/ErrorEnvelope' }
+      examples:
+        notFound: { $ref: './examples.yaml#/NotFound' }
+AlreadyExistsError:
+  description: Recurso ya existente
+  content:
+    application/json:
+      schema: { $ref: './schemas.yaml#/ErrorEnvelope' }
+      examples:
+        conflict: { $ref: './examples.yaml#/AlreadyExists' }
+PayloadTooLargeError:
+  description: Payload demasiado grande
+  content:
+    application/json:
+      schema: { $ref: './schemas.yaml#/ErrorEnvelope' }
+      examples:
+        payloadTooLarge: { $ref: './examples.yaml#/PayloadTooLarge' }
+UnsupportedTypeError:
+  description: MIME no permitido/no soportado
+  content:
+    application/json:
+      schema: { $ref: './schemas.yaml#/ErrorEnvelope' }
+      examples:
+        unsupportedType: { $ref: './examples.yaml#/UnsupportedType' }

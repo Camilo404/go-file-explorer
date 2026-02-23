@@ -1,0 +1,25 @@
+post:
+  tags: [Jobs]
+  summary: Crear job asíncrono
+  description: "Rol requerido: editor/admin"
+  security:
+    - BearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas.yaml#/JobOperationRequest'
+  responses:
+    '202':
+      description: Job aceptado
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/JobResponse'
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'

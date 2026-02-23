@@ -1,0 +1,34 @@
+get:
+  tags: [Jobs]
+  summary: Stream de progreso de job (SSE)
+  description: |
+    Rol requerido: editor/admin.
+    Endpoint Server-Sent Events (SSE) que emite actualizaciones de progreso en tiempo real para un job.
+    Cada evento contiene un JSON con job_id, status, progress, processed_items, total_items, success_items y failed_items.
+    El stream se cierra automáticamente cuando el job finaliza.
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: path
+      name: job_id
+      required: true
+      schema: { type: string }
+  responses:
+    '200':
+      description: Stream de eventos SSE
+      content:
+        text/event-stream:
+          schema:
+            type: string
+            description: |
+              Cada línea tiene formato `data: {json}\n\n` donde json es un objeto JobUpdate.
+            example: |
+              data: {"job_id":"abc-123","status":"running","progress":50,"processed_items":5,"total_items":10,"success_items":5,"failed_items":0}
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'
+    '404':
+      $ref: '../../components/responses.yaml#/NotFoundError'

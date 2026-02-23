@@ -1,0 +1,20 @@
+post:
+  tags: [Auth]
+  summary: Logout
+  security:
+    - BearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas.yaml#/RefreshRequest'
+  responses:
+    '200':
+      description: Logout exitoso
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/BooleanActionResponse'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'

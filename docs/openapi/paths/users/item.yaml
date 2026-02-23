@@ -1,0 +1,84 @@
+get:
+  tags: [Users]
+  summary: Obtener usuario por ID
+  description: "Rol requerido: admin"
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: path
+      name: id
+      required: true
+      schema: { type: string }
+  responses:
+    '200':
+      description: Datos del usuario
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/AuthUserResponse'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'
+    '404':
+      $ref: '../../components/responses.yaml#/NotFoundError'
+
+put:
+  tags: [Users]
+  summary: Actualizar rol de usuario
+  description: "Rol requerido: admin"
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: path
+      name: id
+      required: true
+      schema: { type: string }
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas.yaml#/UpdateUserRequest'
+  responses:
+    '200':
+      description: Usuario actualizado
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/AuthUserResponse'
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'
+    '404':
+      $ref: '../../components/responses.yaml#/NotFoundError'
+
+delete:
+  tags: [Users]
+  summary: Eliminar usuario
+  description: "Rol requerido: admin. No permite auto-eliminación."
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: path
+      name: id
+      required: true
+      schema: { type: string }
+  responses:
+    '200':
+      description: Usuario eliminado
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/DeletedActionResponse'
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'
+    '404':
+      $ref: '../../components/responses.yaml#/NotFoundError'

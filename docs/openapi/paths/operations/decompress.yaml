@@ -1,0 +1,28 @@
+post:
+  tags: [Operations]
+  summary: Descomprimir archivo
+  description: "Rol requerido: editor/admin"
+  security:
+    - BearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas.yaml#/DecompressRequest'
+  responses:
+    '200':
+      description: Archivos descomprimidos
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, enum: [true] }
+              data: { $ref: '../../components/schemas.yaml#/DecompressResponse' }
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'

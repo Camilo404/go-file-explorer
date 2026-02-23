@@ -1,0 +1,25 @@
+post:
+  tags: [Operations]
+  summary: Restaurar rutas desde trash
+  description: "Rol requerido: editor/admin"
+  security:
+    - BearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas.yaml#/RestoreRequest'
+  responses:
+    '200':
+      description: Restauración por item
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/RestoreResponseEnvelope'
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'

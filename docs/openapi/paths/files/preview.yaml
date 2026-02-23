@@ -1,0 +1,25 @@
+get:
+  tags: [Files]
+  summary: Preview inline de archivo
+  description: "Rol requerido: viewer/editor/admin"
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: query
+      name: path
+      required: true
+      schema: { type: string }
+  responses:
+    '200':
+      description: Contenido inline
+      content:
+        '*/*':
+          schema:
+            type: string
+            format: binary
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '404':
+      $ref: '../../components/responses.yaml#/NotFoundError'

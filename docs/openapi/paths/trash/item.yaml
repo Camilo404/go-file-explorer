@@ -1,0 +1,24 @@
+delete:
+  tags: [Trash]
+  summary: Eliminación permanente de un elemento de la papelera
+  description: "Rol requerido: editor/admin. Elimina permanentemente un elemento de la papelera por su ID."
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: path
+      name: id
+      required: true
+      schema: { type: string }
+  responses:
+    '200':
+      description: Elemento eliminado permanentemente
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/DeletedActionResponse'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'
+    '404':
+      $ref: '../../components/responses.yaml#/NotFoundError'

@@ -1,0 +1,29 @@
+put:
+  tags: [Operations]
+  summary: Renombrar archivo/directorio
+  description: "Rol requerido: editor/admin"
+  security:
+    - BearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas.yaml#/RenameRequest'
+  responses:
+    '200':
+      description: Renombrado
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/RenameResponseEnvelope'
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'
+    '404':
+      $ref: '../../components/responses.yaml#/NotFoundError'
+    '409':
+      $ref: '../../components/responses.yaml#/AlreadyExistsError'

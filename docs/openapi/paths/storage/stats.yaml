@@ -1,0 +1,15 @@
+get:
+  tags: [Storage]
+  summary: Estadísticas de almacenamiento
+  description: "Rol requerido: viewer/editor/admin"
+  security:
+    - BearerAuth: []
+  responses:
+    '200':
+      description: Estadísticas de uso de almacenamiento
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/StorageStatsResponse'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'

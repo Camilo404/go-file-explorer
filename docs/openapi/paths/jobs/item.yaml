@@ -1,0 +1,24 @@
+get:
+  tags: [Jobs]
+  summary: Estado de job
+  description: "Rol requerido: editor/admin"
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: path
+      name: job_id
+      required: true
+      schema: { type: string }
+  responses:
+    '200':
+      description: Estado del job
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/JobResponse'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'
+    '404':
+      $ref: '../../components/responses.yaml#/NotFoundError'

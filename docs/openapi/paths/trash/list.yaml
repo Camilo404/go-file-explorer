@@ -1,0 +1,39 @@
+get:
+  tags: [Trash]
+  summary: Listar elementos en la papelera
+  description: "Rol requerido: editor/admin. Lista todos los elementos en la papelera."
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: query
+      name: include_restored
+      schema: { type: boolean, default: false }
+      description: Incluir elementos ya restaurados
+  responses:
+    '200':
+      description: Lista de elementos en la papelera
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/TrashListResponse'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'
+delete:
+  tags: [Trash]
+  summary: Vaciar toda la papelera
+  description: "Rol requerido: editor/admin. Elimina permanentemente todos los elementos de la papelera."
+  security:
+    - BearerAuth: []
+  responses:
+    '200':
+      description: Papelera vaciada
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/EmptyTrashResponse'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'

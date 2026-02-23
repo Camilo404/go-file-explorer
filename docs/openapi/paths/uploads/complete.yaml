@@ -1,0 +1,24 @@
+post:
+  tags: [Uploads]
+  summary: Completar carga por chunks
+  description: "Rol requerido: editor/admin. Finaliza la carga y ensambla el archivo."
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: path
+      name: upload_id
+      required: true
+      schema: { type: string }
+  responses:
+    '200':
+      description: Archivo completado
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/ChunkedUploadCompleteResponse'
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'

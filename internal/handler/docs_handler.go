@@ -32,6 +32,7 @@ func (h *DocsHandler) OpenAPI(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (h *DocsHandler) SwaggerUI(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; connect-src 'self' https://unpkg.com; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://validator.swagger.io")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`<!doctype html>

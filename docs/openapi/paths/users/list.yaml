@@ -1,0 +1,17 @@
+get:
+  tags: [Users]
+  summary: Listar todos los usuarios
+  description: "Rol requerido: admin"
+  security:
+    - BearerAuth: []
+  responses:
+    '200':
+      description: Lista de usuarios
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/UserListResponse'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'

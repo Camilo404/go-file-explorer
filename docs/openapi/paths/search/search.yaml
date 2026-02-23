@@ -1,0 +1,36 @@
+get:
+  tags: [Search]
+  summary: Buscar archivos/directorios
+  description: "Rol requerido: viewer/editor/admin. Se requiere al menos uno de: q, type o ext"
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: query
+      name: q
+      schema: { type: string }
+    - in: query
+      name: path
+      schema: { type: string, default: / }
+    - in: query
+      name: type
+      schema: { type: string, enum: [file, dir] }
+    - in: query
+      name: ext
+      schema: { type: string, example: .pdf }
+    - in: query
+      name: page
+      schema: { type: integer, minimum: 1, default: 1 }
+    - in: query
+      name: limit
+      schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
+  responses:
+    '200':
+      description: Resultados
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/SearchResponse'
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'

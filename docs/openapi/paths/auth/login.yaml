@@ -1,0 +1,19 @@
+post:
+  tags: [Auth]
+  summary: Login de usuario
+  description: "Roles permitidos: viewer, editor, admin"
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas.yaml#/LoginRequest'
+  responses:
+    '200':
+      description: Tokens emitidos
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/TokenPairResponse'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'

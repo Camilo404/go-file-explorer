@@ -1,0 +1,27 @@
+post:
+  tags: [Explorer]
+  summary: Crear directorio
+  description: "Rol requerido: editor/admin"
+  security:
+    - BearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas.yaml#/CreateDirectoryRequest'
+  responses:
+    '201':
+      description: Directorio creado
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/DirectoryCreateResponse'
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'
+    '409':
+      $ref: '../../components/responses.yaml#/AlreadyExistsError'

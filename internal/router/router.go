@@ -46,6 +46,8 @@ func New(
 		_, _ = w.Write([]byte("ok"))
 	})
 	r.Get("/openapi.yaml", h.Docs.OpenAPI)
+	// Serve the OpenAPI directory for relative references so Swagger UI can load split files
+	r.Handle("/openapi/*", http.StripPrefix("/openapi/", http.FileServer(http.Dir("docs/openapi"))))
 	r.Get("/swagger", h.Docs.SwaggerUI)
 
 	r.Route("/api/v1", func(api chi.Router) {

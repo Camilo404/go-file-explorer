@@ -1,0 +1,27 @@
+post:
+  tags: [Auth]
+  summary: Registrar usuario
+  description: "Rol requerido: admin"
+  security:
+    - BearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas.yaml#/RegisterRequest'
+  responses:
+    '201':
+      description: Usuario creado
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/AuthUserResponse'
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'
+    '409':
+      $ref: '../../components/responses.yaml#/AlreadyExistsError'

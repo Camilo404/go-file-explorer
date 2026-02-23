@@ -1,0 +1,32 @@
+get:
+  tags: [Files]
+  summary: Descargar archivo o ZIP de directorio
+  description: "Rol requerido: viewer/editor/admin"
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: query
+      name: path
+      required: true
+      schema: { type: string }
+    - in: query
+      name: archive
+      schema: { type: boolean, default: false }
+  responses:
+    '200':
+      description: Archivo/zip stream
+      content:
+        application/octet-stream:
+          schema:
+            type: string
+            format: binary
+        application/zip:
+          schema:
+            type: string
+            format: binary
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '404':
+      $ref: '../../components/responses.yaml#/NotFoundError'

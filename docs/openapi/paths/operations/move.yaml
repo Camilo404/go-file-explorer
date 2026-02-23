@@ -1,0 +1,25 @@
+put:
+  tags: [Operations]
+  summary: Mover archivos/directorios
+  description: "Rol requerido: editor/admin"
+  security:
+    - BearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas.yaml#/MoveRequest'
+  responses:
+    '200':
+      description: Resultado por item
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas.yaml#/MoveResponseEnvelope'
+    '400':
+      $ref: '../../components/responses.yaml#/BadRequestError'
+    '401':
+      $ref: '../../components/responses.yaml#/UnauthorizedError'
+    '403':
+      $ref: '../../components/responses.yaml#/ForbiddenError'
