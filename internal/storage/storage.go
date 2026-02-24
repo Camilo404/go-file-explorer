@@ -1,11 +1,33 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
+
+	"go-file-explorer/pkg/apierror"
 )
+
+func classifyOSError(err error, context string) error {
+	if err == nil {
+		return nil
+	}
+
+	if errors.Is(err, os.ErrPermission) {
+		return apierror.New("PERMISSION_DENIED", "permission denied", context, http.StatusForbidden)
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return apierror.New("NOT_FOUND", "path not found", context, http.StatusNotFound)
+	}
+	if errors.Is(err, os.ErrExist) {
+		return apierror.New("ALREADY_EXISTS", "path already exists", context, http.StatusConflict)
+	}
+
+	return err
+}
 
 type Storage interface {
 	RootAbs() string
@@ -51,7 +73,7 @@ func (s *Local) MkdirAll(clientPath string, perm fs.FileMode) error {
 	}
 
 	if err := os.MkdirAll(resolved, perm); err != nil {
-		return fmt.Errorf("mkdir %q: %w", clientPath, err)
+		return classifyOSError(err, clientPath)
 	}
 
 	return nil
@@ -65,7 +87,7 @@ func (s *Local) Stat(clientPath string) (fs.FileInfo, error) {
 
 	info, err := os.Stat(resolved)
 	if err != nil {
-		return nil, err
+		return nil, classifyOSError(err, clientPath)
 	}
 
 	return info, nil
@@ -79,7 +101,7 @@ func (s *Local) ReadDir(clientPath string) ([]fs.DirEntry, error) {
 
 	entries, err := os.ReadDir(resolved)
 	if err != nil {
-		return nil, err
+		return nil, classifyOSError(err, clientPath)
 	}
 
 	return entries, nil
@@ -92,7 +114,7 @@ func (s *Local) RemoveAll(clientPath string) error {
 	}
 
 	if err := os.RemoveAll(resolved); err != nil {
-		return fmt.Errorf("remove %q: %w", clientPath, err)
+		return classifyOSError(err, clientPath)
 	}
 
 	return nil
@@ -110,11 +132,11 @@ func (s *Local) Rename(oldPath string, newPath string) error {
 	}
 
 	if err := os.MkdirAll(filepath.Dir(newResolved), 0o755); err != nil {
-		return fmt.Errorf("prepare destination %q: %w", newPath, err)
+		return classifyOSError(err, newPath)
 	}
 
 	if err := os.Rename(oldResolved, newResolved); err != nil {
-		return fmt.Errorf("rename %q to %q: %w", oldPath, newPath, err)
+		return classifyOSError(err, fmt.Sprintf("%s -> %s", oldPath, newPath))
 	}
 
 	return nil
@@ -128,7 +150,7 @@ func (s *Local) OpenForRead(clientPath string) (*os.File, error) {
 
 	file, err := os.Open(resolved)
 	if err != nil {
-		return nil, err
+		return nil, classifyOSError(err, clientPath)
 	}
 
 	return file, nil
@@ -141,12 +163,12 @@ func (s *Local) OpenForWrite(clientPath string) (*os.File, error) {
 	}
 
 	if err := os.MkdirAll(filepath.Dir(resolved), 0o755); err != nil {
-		return nil, fmt.Errorf("create parent directory: %w", err)
+		return nil, classifyOSError(err, clientPath)
 	}
 
 	file, err := os.OpenFile(resolved, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
-		return nil, err
+		return nil, classifyOSError(err, clientPath)
 	}
 
 	return file, nil

@@ -3,7 +3,9 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
+	"os"
 
 	"go-file-explorer/internal/model"
 	"go-file-explorer/pkg/apierror"
@@ -92,6 +94,24 @@ func writeError(w http.ResponseWriter, err error) {
 		status = http.StatusBadRequest
 		body.Code = "BAD_REQUEST"
 		body.Message = "Invalid input"
+	} else if errors.Is(err, os.ErrPermission) {
+		status = http.StatusForbidden
+		body.Code = "PERMISSION_DENIED"
+		body.Message = "Permission denied on the filesystem"
+		body.Details = err.Error()
+	} else if errors.Is(err, os.ErrNotExist) {
+		status = http.StatusNotFound
+		body.Code = "NOT_FOUND"
+		body.Message = "Path not found"
+		body.Details = err.Error()
+	} else if errors.Is(err, os.ErrExist) {
+		status = http.StatusConflict
+		body.Code = "ALREADY_EXISTS"
+		body.Message = "Path already exists"
+		body.Details = err.Error()
+	} else {
+		// Log unclassified errors so they are visible in container logs.
+		slog.Error("unhandled error in writeError", "error", err.Error())
 	}
 
 	w.Header().Set("Content-Type", "application/json")
