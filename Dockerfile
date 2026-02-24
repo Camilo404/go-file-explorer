@@ -17,7 +17,7 @@ FROM alpine:3.20
 
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates tzdata ffmpeg
+RUN apk add --no-cache ca-certificates tzdata ffmpeg su-exec
 
 COPY --from=builder /bin/go-file-explorer /usr/local/bin/go-file-explorer
 COPY docs /app/docs
@@ -31,8 +31,8 @@ RUN addgroup -S explorer && adduser -S explorer -G explorer
 RUN mkdir -p /data/.trash /data/.thumbnails /data/.chunks && \
     chown -R explorer:explorer /app /data
 
-USER explorer
-
+# Entrypoint runs as root so it can fix ownership of mounted volumes,
+# then drops to the explorer user via su-exec.
 ENV STORAGE_ROOT=/data
 ENV TRASH_ROOT=/data/.trash
 ENV THUMBNAIL_ROOT=/data/.thumbnails

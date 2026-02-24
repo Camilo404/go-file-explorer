@@ -1,11 +1,31 @@
 #!/bin/sh
 set -eu
 
+# ---------------------------------------------------------------------------
+# Fix ownership of mounted volumes so the non-root explorer user can write.
+# The entrypoint runs as root; after fixing permissions it drops privileges
+# via su-exec.
+# ---------------------------------------------------------------------------
+DATA_DIR="${STORAGE_ROOT:-/data}"
+
+# Ensure required sub-directories exist.
+mkdir -p "$DATA_DIR/.trash" "$DATA_DIR/.thumbnails" "$DATA_DIR/.chunks"
+
+# Fix ownership (only the top-level + hidden dirs; avoids slow recursive chown
+# on large data sets by using -maxdepth).
+chown explorer:explorer "$DATA_DIR"
+find "$DATA_DIR" -maxdepth 1 -name '.*' -exec chown -R explorer:explorer {} +
+chown -R explorer:explorer /app
+
+# ---------------------------------------------------------------------------
+# Generate .env / JWT_SECRET if needed
+# ---------------------------------------------------------------------------
 ENV_FILE="/app/.env"
 ENV_EXAMPLE_FILE="/app/.env.example"
 
 if [ ! -f "$ENV_FILE" ] && [ -f "$ENV_EXAMPLE_FILE" ]; then
   cp "$ENV_EXAMPLE_FILE" "$ENV_FILE"
+  chown explorer:explorer "$ENV_FILE"
 fi
 
 needs_jwt=false
@@ -26,4 +46,5 @@ if [ "$needs_jwt" = true ]; then
   fi
 fi
 
-exec /usr/local/bin/go-file-explorer
+# Drop privileges and run the application as the explorer user.
+exec su-exec explorer /usr/local/bin/go-file-explorer
