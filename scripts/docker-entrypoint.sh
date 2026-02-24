@@ -1,20 +1,11 @@
 #!/bin/sh
 set -eu
 
-# ---------------------------------------------------------------------------
-# Fix ownership of mounted volumes so the non-root explorer user can write.
-# The entrypoint runs as root; after fixing permissions it drops privileges
-# via su-exec.
-# ---------------------------------------------------------------------------
 DATA_DIR="${STORAGE_ROOT:-/data}"
 
-# Ensure required sub-directories exist.
 mkdir -p "$DATA_DIR/.trash" "$DATA_DIR/.thumbnails" "$DATA_DIR/.chunks"
 
-# Fix ownership (only the top-level + hidden dirs; avoids slow recursive chown
-# on large data sets by using -maxdepth).
-chown explorer:explorer "$DATA_DIR"
-find "$DATA_DIR" -maxdepth 1 -name '.*' -exec chown -R explorer:explorer {} +
+chown -R explorer:explorer "$DATA_DIR"
 chown -R explorer:explorer /app
 
 # ---------------------------------------------------------------------------
